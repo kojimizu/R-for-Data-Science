@@ -1,0 +1,372 @@
+---
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+Introduction to Statistical Leaning
+
+Chapter2: Statistical learning
+
+2.3.1 Basic command
+```{r}
+x=c(1,6,2)
+y=c(1,4,3)
+x
+y
+```
+
+length:
+calculate length of variables 
+```{r}
+length(x)
+length(y)
+```
+
+ls(): 
+list all of variables
+rm(): 
+delete any
+
+```{r}
+ls()
+rm(x,y)
+ls()
+```
+
+rm function(): 
+remove all objects at once
+
+```{r}
+rm(list=ls()) #delete all objects
+```
+
+matrix function: 
+creates a matrix of numbers
+
+```{r}
+?matrix
+x=matrix(data=c(1,2,3,4),nrow=2,ncol=2)
+x #omit data, nrow, ncol
+```
+
+sqrt function()
+returns square root of each element of vector/matrix
+```{r}
+sqrt(x)
+sqrt(x)^2
+```
+
+rnorm() function
+generates a vector of random normal variables
+```{r}
+x=rnorm(50)
+y=x+rnorm(50,mean=50,sd=0.1)
+# default: mean=0, sd=1
+```
+
+set.seed() function
+takes an arbitrary interger argument
+set.seed is used to perform calculation involving random quantities
+```{r}
+set.seed(1303)
+rnorm(50)
+
+# delete all objects 
+rm(list=ls()) 
+
+set.seed(3)
+y=rnorm(100)
+mean(y)
+var(y)
+sqrt(var(y))
+sd(y)
+
+```
+
+Chap2.3.2 Graphics
+
+
+##6.6 Lab2 Ridge Regression and the Lasso
+
+we will use glmnet package for ridge regression and lasso.Unlike other functions, we must pass in an x matrix as well as y vector, not use y ~ x syntax for glmnet.
+
+Dataset is Hitters data, and we predict Salary after removing missing values.
+- Model.matrix(): create x by 1. producing correspondings to 19 predictors, (2) automatically transforms any qualitative variables into dummy variables. 
+- glmnet(): the function only takes numerical values, thus quantitative inputs need to be transformed
+
+```{r}
+require(ISLR)
+x=model.matrix(Salary~.,data=Hitters)[,-1]
+y=Hitters$Salary
+Hitters
+```
+
+
+### 6.6.1 Ridge Rgression
+
+The glmnet()function has an alpha argument that determines what type of model to fit(alpha=0 -> ridge, alpha=1 -> lasso)
+
+```{r}
+library(glmnet)
+grid=10^seq(10,-2,length=100)
+ridge.mod=glmnet(x,y,alpha=0,lambda=grid)
+```
+
+In addition, the glmnet() function performs ridge regression for an automatically selected range of É… values. In the above case, grid of values É… is selected from É… = 10^10 to 10^-2 (from only intercept to lewast squares fit).We can compute model fits for a particular value o É… thats not one of the original grid values.
+
+The glmnet() function standardizes the variables so that they are on the same scale. To cancel default setting, standardize=FALSE, cancel)
+
+```{r}
+#20Å~100 matrix
+dim(coef(ridge.mod)) 
+```
+
+We expect the coefficient estimates to be smaller, in terms of l2 norm, when a large value of É… is used, as compared to when a small value of É… is used. THese are coefficnents  when É…=11,498, along with their l2 norms. 
+```{r}
+## É… = 11,498
+ridge.mod$lambda[50]
+coef(ridge.mod)[,50]
+sqrt(sum(coef(ridge.mod)[-1,50]^2))
+
+## É… = 705
+ridge.mod$lambda[60]
+coef(ridge.mod)[,60]
+sqrt(sum(coef(ridge.mod)[-1,60]^2))
+```
+
+We can use the predict() function, to obtain ridge regression coefficients for a new value of É… (É…=50). 
+```{r}
+predict(ridge.mod,s=50,type="coefficients")[1:20,]
+```
+
+
+We now split samples into training set and test set to estimate test error. There are mainly two methods that we can apply.
+- method (1): Produce a random vector of TRUE, FALSE elements and select obs corresponding to TRUE for the training data
+- method (2): Randomly choose a sbuset of numbers between 1 and n as indices for the training set
+
+We first set a random seed so that results obtained will be reproducible.
+```{r}
+set.seed(1)
+train=sample(1:nrow(x),nrow(x)/2)
+tset=(-train)
+y.test=y[test]
+```
+
+Next, we fit ridge regression on training set, evaluate its MSE (É…=4). Note the use of predict() is to get predictions for test set, by replacing type="coefficients" with the newx argument. 
+```{r}
+ridge.mod=glmnet(x[train,],y[train],alpha=0, lambda=grid,
+                 thres=1e-12)
+ridge.pred=predict(ridge.mod, s=4, newx=x[test,])
+mean((ridge.pred-y.test)^2)
+```
+
+The test MSE is 122072. Note that if we had simply fit model with just an intercept, we would have predicted each test obs using the mean of the training obs. In that case, we could compute the test set MSE as below.
+```{r}
+mean((mean(y[train])-y.test)^2)
+```
+
+We could also get the same results by fiting a ridge regression model with a very large value of É…. Note that, 1e10=10^10
+```{r}
+ridge.pred=predict(ridge.mod,s=1e10,newx=x[test,])
+mean((ridge.pred-y.test)^2)
+
+```
+
+Therefore, fitting a ridge regression model with É…=4 leads to much lower test MSE than fitting a model with just and intercept. We now check whether there is any benefit to performing ridge regression with É…=4 insted of just performing least square regressions. 
+
+Recall that least squares is simply ridge regression with É…=0
+```{r}
+ridge.pred=predict(ridge.mod,s=0,newx=x[test,])
+mean((ridge.pred-y.test)^2)
+lm(y~x,subset=train)
+predict(ridge.mod,s=0,type="coefficient")[1:20,]
+```
+
+In general, if we want to fit a (unpenalized) least squares model, then we should use the lm() function, since the function provides more useful outputs such as se and p-values for coefficients.
+
+We can do this using built-in cross validation functions, cv.glmnet(). By default, the function performs ten-fold cross-validation, though this can be changed using the argument folds. Note that we set a random seed first so our results will be reproducible (the choice of cv folds is random)
+
+```{r}
+set.seed(1)
+cv.out=cv.glmnet(x[train,],y[train],alpha=0)
+plot(cv.out)
+bestlam=cv.out$lambda.min
+bestlam
+```
+
+From the above results, we see that the value of lambda that results in the smallest cross-validation error is 212. What is the test MSE associated with this value of lambda?
+
+```{r}
+ridge.pred=predict(ridge.mod, s=bestlam, newx=x[test,])
+mean((ridge.pred-y.test)^2)
+```
+
+This represents a further improvement over the test MSE that we got using lambda=4. Finally, we refit our rife regression model on the full data set, using the value of lambda chosen by cv, and examine the coefficnent estimates. 
+
+```{r}
+out=glmnet(x,y,alpha=0)
+predict(out, type="coefficients", s=bestlam)[1:20,]
+```
+
+As expected, none of the coefficents are zero - ridge regression does not perform variable selection!
+
+###6.6.2 The Lasso
+While the ridge regression with a wise choice of lambda can outperform least squares as well as the null model. We now ask whether the lasso can yield either a more accurate or a more interpretable model than ridge regression. 
+
+In order to fit a lasso model, we once again use the glmnet() function; however, this time we use the argument alpha=1. ther than this change, we proceed just as we did in fitting a ridge model.
+```{r}
+lasso.mod=glmnet(x[train,],y[train],alpha=1,lambda=grid)
+plot(lasso.mod)
+```
+
+We can see from the coefficient plot tat depending on the choice of tuning parameter (L1 norm), some of the coefficients will be exactly equal to zero. We now perform cross-validation and compute the associated test error.
+```{r}
+set.seed(1)
+cv.out=cv.glmnet(x[train,],y[train],alpha=1)
+plot(cv.out)
+bestlam=cv.out$lambda.min
+lasso.pred=predict(lasso.mod,s=bestlam,newx=x[train,])
+mean((lasso.pred-y.test)^2)
+```
+
+This is subtantially lowe tha the test set MSE of the null model and of least squares and very similar to the test MSE of ridge ression with lambda chosen by cv.
+
+However, the lasso has a substantial advantage over ridge regression in that the resulting coefficient estimates are sparse. Here we see that 12 of the 19 coefficient estimates are exactly zero. So the lasso model with lambda chosen by cv contains only seven varables.
+
+```{r}
+out=glmnet(x,y,alpha=1, lambda=grid)
+lasso.coef=predict(out, type="coefficients",s=bestlam)[1:20,]
+lasso.coef
+lasso.coef[lasso.coef!=0]
+```
+
+## 6.7 Lab3 - PCR and PLS Regression
+### 6.7.1 Principal Components Regression
+
+Principalcomponents regression (PCR) can be perfromed using the pcr() function, which is a part of the pls library. We now apply PCR to the Hitters data, in order to predict Salary. Again, ensure that the missing values have been remived from the data. 
+
+```{r}
+install.packages("pls")
+library(pls)
+set.seed(2)
+pcr.fit=pcr(Salary~.,data=Hitters, sclae=TRUE,
+            validation="CV")
+```
+
+The syntax for the pcr() function is similar to that for lm(),with a few additional options. 
+- Setting scale=TRUE has effect of standardizing each predictor, using formula (6.6), prior to generating the principal components, so that the sacle on which each variable is measured will not have an effect. 
+- Setting valudation="CV" causes pcr() to compute the ten-fold cross-validation error for each possible value of M, the number of principal components used. The resulting fit can be examined using summary().
+
+```{r}
+summary(pcr.fit)
+```
+
+The cv scores is provided for each possible number of components, ranging from M=0 onward (WE have printed the CV output only up to M=4). 
+- pcr() reports the root mean squared error; in order to obtain the usual MSE, we must square this quantity. For instance, a root mean squared error of 352.8 corresponds to an MSE of 352.8^2=124,468.
+
+We can also plot the cross-validation scores using the validationplot() function.Using val.type="MSEP", will cause the cv MSE to be plotted.
+
+```{r}
+validationplot(pcr.fit,val.type="MSEP")
+```
+
+We see that the smallest cv erro occurs when M=16 components are ued. This is barely fewer than M = 19, which amounts to simly performing least squares, because when all of the components are used in PCR no dimension resduction occurs. However, from the plot we also see that the cv erro is roughly the same when only one component is included in the model. This suggests that a model that uses just a small number of components might suffice. 
+
+The summary () function also provides the percentage of variance explained in the predictors and in the responses using different numbers of components. This concept is discussed in greater detail in Chapter 10.
+
+We can think of this as the amount of information about the predictors or setting M=1 only caputures 38.31% of all variance, or information in the predictors. In contract, M=6 increases the value to 88.63%. IF we were to use all M=p=19 components, this would increase to 100%. 
+
+We now perform PCR on the training data and evaluate its test set performance. 
+
+```{r}
+set.seed(1)
+pcr.fit=pcr(Salary~.,data=Hitters, subset=train, scale=TRUE,
+            valudation="CV")
+validationplot(pcr.fit, val.type="MSEP")
+```
+
+Now, we find that the lowest cv erro occurs when M=7 coponent are used. We compute the test MSE as follows. 
+```{r}
+pcr.pred=predict(pcr.fit,x[test,],ncomp=7)
+mean((pcr.pred-y.test)^2)
+```
+
+This test set MSE is competitive with the results obtained using ridge ressionand the lasso. However, as a result of they way PCR is impletement, the final model is more difficult to interpret, because it does not perform any kind of variable selection or even direclty produce coefficent estimates.
+
+Finally, we fit PCR on the full data set, using M=7, the number of components identified by cross-validation.
+
+```{r}
+pcr.fit=pcr(y~x, scale=TRUE,ncomp=7)
+summary(pcr.fit)
+```
+
+### 6.7.2 Partial Least Squares 
+We impletement partial least squares using the plsr() function, also in the pls library.
+The syntax just like tha of the pcr() function.
+
+```{r}
+set.seed(1)
+require(pls)
+require(ISLR)
+pls.fit=plsr(Salary~., data=Hitters, subset=train,scale=TRUE,
+             validation="CV")
+summary(pls.fit)
+```
+
+The lowest cross vxalidation error occurs when only M is two partial leastdirectionfs are used.Å@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

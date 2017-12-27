@@ -5,11 +5,12 @@ output:
   html_document: default
 ---
 
-Introduction to Statistical Leaning
+Chap2 code review: 12/27
+Chap3 code review: 12/28
 
-Chapter2: Statistical learning
-
-2.3.1 Basic command
+Introduction to Statistical Leaning by R
+# Chapter2: Statistical learning
+### 2.3.1 Basic command
 ```{r}
 x=c(1,6,2)
 y=c(1,4,3)
@@ -85,9 +86,190 @@ sd(y)
 
 ```
 
-Chap2.3.2 Graphics
+### 2.3.2 Graphics
+The plot ()function is the primary way to plot data. 
+```{r}
+x=rnorm(100)
+y=rnorm(100)
+plot(x,y)
+plot(x,y,xlab="x-axis", ylab="y-axis",)
+```
+
+When we want to save the output of an Rplot, pdf() function or jpeg() function can be used. 
+- dev.off(): indicates to R that we are done creating the plot
+```{r}
+pdf("Figure.pdf")
+plot(x,y,col="green")
+dev.off()
+```
+
+the function seq can be used to create a sequence of numbers. For instance, seq(a,b) makes a vector of integers between a and b 
+- seq(): 
+```{r}
+x=seq(1,10)
+x
+x=1:10
+x
+x=seq(-pi,pi,length=50)
+x
+seq(0,1,length=10)
+```
+
+We will now create more sophisticated plots, 
+- contour(): produces contour plot to represent three-dimensional data similar to topographical map. It takes three arguments:
+(1) A vector of the x values (the first dimension), 
+(2) A vector of the y values (the second dimension), and
+(3) A matrix whose elements correspond to the z value (the third dimension) for each pair of (x,y) coordinates. 
+
+As with the plot() function, there are many other inputs that can be used to fine-tune the output of the contour () function. 
+```{r}
+y=x
+f=outer(x,y,function(x,y)cos(y)/(1+x^2))
+contour(x,y,f)
+contour(x,y,f,nlevels=45, add=T)
+fa=(f-t(f))/2
+contour(x,y,fa,nlevel=15)
+```
+
+The image() function works the same as contour (), except that it produces a color-coded plot whose colors depend on the z value. This is know as a heatmap.
+- persp():produce a three-dimentional plot
+          argument: theta and phi control angles
+
+```{r}
+image(x,y,fa)
+persp(x,y,fa)
+persp(x,y,fa,theta=30)
+persp(x,y,fa,theta=30, phi=20)
+persp(x,y,fa,theta=30, phi=70)
+persp(x,y,fa,theta=30, phi=40)
+```
 
 
+### 2.3.3 Indexing Data
+We often wish to examine part of a set of data.Å@Suppose data is stored in the matrix A.Command [] will select element correspoding to specific row/column.We can also select multiple rows/columsn by providing vectors at the indices. 
+
+R treats a single row/column of a matri as a vector.
+The use of negative sign - in the index tell R to keep all rows/columns except these indicated in the index.
+- dim(): outputs the number of rows followed by the number of columns of a given matrix
+
+```{r}
+A=matrix(1:16, 4,4)
+A[2,3]
+A[c(1,3), c(2,4)]
+A[1:3, 2:4]
+A[1:2,]
+A[,1:2]
+
+A[1,]
+A[-c(1,3),]
+dim(A)
+```
+
+### 2.3.4 Loading Data
+data:Auto from ISLR library
+- read.table(): primary function to load table data
+- write.table():export data
+- change dir...: select directory usingthe option under the File menu
+
+Note that Auto.data is a text file, while you could alternatively open on PC using a standard text editor. Good idea to veiw a data set using a text editer or excel before loading it into R. 
+```{r}
+require(ISLR)
+Auto=read.table("Auto.data")
+fix(Auto)
+```
+
+This particular data set has not been loaded correctly, because R has assumed that the variable names are part of the data and has included them in the first row. 
+The data set also includes a number of missing observations
+- header=T (header=TRUE): first line of the file contains the variable names 
+- na.strings:it sees a particular character or set of characters (such as question mark), which to be treated as a missing element of a data matrix. 
+```{r}
+Auto=read.table("Auto.data",header=TRUE, na.strings="?")
+fixt(Auto)
+```
+
+#### Excel
+Excel is a common-format data storage progmram.
+- read.csv (): load csv data
+```{r}
+Auto=read.csv("Auto.csv",header=TRUE,na.strings="?")
+fix(Auto)
+dim(Auto)
+Auto[1:4,]
+```
+
+The dim() function tells us that the data has 397 observation and nine variables(columns). There are various ways to deal with missing data.
+- na.omit(): simply remove these rows
+```{r}
+Auto=na.omit(Auto)
+dim(Auto)
+```
+
+Once the date are loaded correctly, we can use names () function to check the variable names.  
+```{r}
+names(Auto)
+```
+
+### 2.3.5 Additional graphical and numerical summaries 
+
+We can use plot () function to produce scatterplots of the quantitative variables. 
+- cylinders - numeric vector (quantitative)
+```{r}
+plot(Auto$cylinders,Auto$mpg)
+attach(Auto)
+plot(cylinders, mpg)
+```
+
+
+
+# Chapter3: Linear Regression
+### 3.6.1 Laboratories
+```{r}
+library(MASS)
+install.packages("ISLR")
+library(ISLR)
+```
+
+### 3.6.2 Simple Linear Regression
+Using Boston dataset in the MASS package, we conduct a simple linear regression.variables in the Boston dataset is as follows.
+- medv:median house value
+- rm:average number of rooms
+- age:average age of houses
+- lstat:percent of households with low socioeconomic status
+
+We simply apply lm () function for simple linear regression. Alternatively, Attach () function is used to define dataset.
+```{r}
+require(MASS)
+fix(Boston)
+names(Boston) #check variable list
+
+lm.fit=lm(medv~lstat,data=Boston)
+attach(Boston)
+lm.fit=lm(medv~lstat)
+```
+
+summary () function is useful to check regression results by linear model (lm).Addditionaly, the following functions are often used. 
+- names():access other infoirmation stored in lm.fit
+- coef(): extract estimated coefficients
+```{r}
+summary(lm.fit)
+names(lm.fit)
+coef(lm.fit)
+```
+
+Confidential interval 
+- confint(): show confidential internal
+Predict 
+- predict(): produce confidential interval/prediction interval (argument (5%, 10%, 15%) in the below illustration)
+```{r}
+predict(lm.fit, data.frame(lstat=(c(5,10,15))))
+predict(lm.fit, data.frame(lstat=(c(5,10,15))),
+        interval="prediction")
+```
+
+Data visulization 
+
+
+-------------------------------------------------
 ##6.6 Lab2 Ridge Regression and the Lasso
 
 we will use glmnet package for ridge regression and lasso.Unlike other functions, we must pass in an x matrix as well as y vector, not use y ~ x syntax for glmnet.

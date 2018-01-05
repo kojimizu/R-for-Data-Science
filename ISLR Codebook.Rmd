@@ -212,11 +212,25 @@ names(Auto)
 ### 2.3.5 Additional graphical and numerical summaries 
 
 We can use plot () function to produce scatterplots of the quantitative variables. 
-- cylinders - numeric vector (quantitative)
 ```{r}
 plot(Auto$cylinders,Auto$mpg)
 attach(Auto)
 plot(cylinders, mpg)
+```
+
+The cylinders variable is a numeric vector (quantitative), but it can be changed into factor variable, as there are only a small number of possible values. 
+- as.factor(): converts quantiative variable into aqualitative variable
+```{r}
+cylinders=as.factor(cylinders)
+```
+
+If the variable plotted on the x-axix is categorical, then boxplots will automatically be procued with plot() function.
+```{r}
+plot(cylinders, mpg)
+plot(cylinders, mpg, col="red")
+plot(cylinders, mpg, col="red", varwidth=TRUE)
+plot(cylinders, mpg, col="red", varwidth=TRUE,horizontal=TRUE)
+plot(cylinders, mpg, col="red", varwidth=TRUE,xlab="cylinders",ylab="NPG")
 ```
 
 
@@ -266,7 +280,211 @@ predict(lm.fit, data.frame(lstat=(c(5,10,15))),
         interval="prediction")
 ```
 
-Data visulization 
+We now plot medv and lstat along with the least squares regression line using the plot() and abline () functions. 
+- plot()
+- abline(): used to draw any line, not just the least squares regression line. To draw a line with intercept a and slope b, we type a bline(a,b). 
+```{r}
+plot(lstat, medv)
+abline(lm.fit)
+```
+
+Below, we experiment with some additional settings for plotting lines and points. 
+- lwd=#: width of the regression line to be increased by a factor of #
+- pch: option to create different plotting symbols 
+```{r}
+plot(lstat,medv)
+abline(lm.fit,lwd=3)
+abline(lm.fit,lwd=3,col="red")
+plot(lstat, medv, col="red")
+plot(lstat, medv, pch=20)
+plot(lstat, medv, pch="+")
+plot(lstat, medv, pch=1:20)
+```
+
+Next, we examine some diagnostic plots, several for which were discussed in Section 3.3.3. Four diagnostic plots are automatically produced by applying the plot () function directly to output from lm().
+- par(): split display screen into separate panels (2Å~2 grid of panels)
+```{r}
+par(mfrow=c(2,2))
+plot(lm.fit)
+```
+
+Alternatively, we can compute residuals from a linear regression fit using the residual () function. The function rstudent() will return the studentized residuals, an we can use this function to plot th resduals against the fitted values.
+- residual():
+- rstudent(): return studentied residuals
+```{r}
+plot(predict(lm.fit),residuals(lm.fit))
+plot(predict(lm.fit),rstudent(lm.fit))
+```
+
+From the residual plot, there is some evidence of non-linearity. Leverage statistics can be computed for predictors using hatvalues() function.
+- which.max()] identifies the index of the largest element of a vector
+```{r}
+plot(hatvalues(lm.fit))
+which.max(hatvalues(lm.fit)) #375
+```
+
+### 3.6.3 Multiple linear regression
+In order to fit a multiple linear regression model using least squares, we use the lm() function. 
+
+The syntax lm(y~x1+x2+x3) is used to fit a model with three predictors.
+```{r}
+lm.fit=lm(medv~lstat+age, data=Boston)
+summary(lm.fit)
+```
+
+The Boston data set contains 13 variables, and it would be cumbersum to have to type all of these in order to perform a regression using all of the predictors. Instead, we ca use the following shor-hand.
+```{r}
+lm.fit=lm(medv~.,data=Boston)
+summary(lm.fit)
+```
+
+We now access the individual components of a summary object by name. Hence, summary(lm.fit)$r.sq gives us the R2, and summary(lm.fit)$sigma gives us RSE. 
+- The vif(): part of car package, compute variance inflation factors
+
+```{r}
+install.packages("car")
+library(car)
+vif(lm.fit)
+```
+
+When we want to exclude specific variables, the below syntax results in a regressiong using all predictors except age.
+- update(): exclude specific variables 
+```{r}
+lm.fit1=lm(medv~.-age,data=Boston)
+summary(lm.fit1)
+lm.fit1=update(lm.fit,~.-age)
+```
+
+###3.6.4 Interaction Terms
+It is easy to include interaction terms in a linear model using lm() function.
+
+The sytntax lstat:black tells R to include an interaction term between lstat and black
+```{r}
+summary(lm(medv~lstat*age,data=Boston))
+```
+
+### 3.6.5 Non-linear Transformations of the Predictors
+
+The lm() function can also accomodate non-linear transformations for the predictors. Given a predictor X, we can create a predictor X2 using I(X^2).
+- I(): function needed to generate X to the power 2 (as ^ has a special meaning in a formula)
+```{r}
+install.packages("dply")
+require(dplyr)
+require(magrittr)
+
+lm.fit2=lm(medv~lstat+I(lstat^2)) 
+summary(lm.fit2)
+```
+
+The near-zero p-value associated with the quadratic term suggests that it leads to an improved model. 
+We use the anova() function to further quantify the extent to which the quadratic fit is superior to the linear fit. 
+```{r}
+lm.fit=lm(medv~lstat) 
+anova(lm.fit, lm.fit2)
+```
+
+Here Model1 represents the linear sub-model containing only one predictor, lstat, while Model2 corresponds to the larer quadratic model that hs two predictors, lstat and lstat^2.
+- anova(): performs a hypothesis test comparing the two models. 
+  - Null: two models fit the data equally
+  - Alternative:full model is superior 
+  
+Hence F-statistics is 135, and the associated p-value is virtually zero, which proides clear evidence that Model2 is far superior to Model1.
+```{r}
+par(mfrow=c(2,2))
+plot(lm.fit2)
+
+```
+
+In order to create a cubic fit, we can include a predictor of the form I(x^3). However, this approach can start to get cumbersome for higher-order polynomials. Thus, poly() function to create the polynomial within lm(). 
+- poly(): function to create polynomials.
+```{r}
+lm.fit5=lm(medv~poly(lstat,5)) 
+summary(lm.fit5)
+```
+
+Including additional polynomial terms, up to fifth order leads to an improvement in the model fit. However, further investigation of the data revieals that no polynomials terms beyond fifth order have significant p-values in a regression fit. 
+- log(): create log-based variable
+```{r}
+lm(medv~log(rm), data=Boston) %>% summary()
+```
+
+
+### 3.6.6 Qualitative Predictors
+
+We will examine the Carseats data, which is part of the ISLR library. We will attempt to predict Sales in 400 locations based on a number of predictors. 
+- dataset: Carseats (ISLR package)
+```{r}
+fix(Carseats) %>% names()
+```
+
+The Carseats dataset included following variables
+- Sales: child car seat sales 
+- Shelveloc: indicator of the quality of shelving location (space within a store in which the car seat is displayed, e.g., Bad, Medium, Good)
+
+Give a qualitative variable, R generates dummy variables automatically. Below, we fit a multiple regression model that includes some interaction terms.
+```{r}
+lm(Sales~.+Income:Advertising:Age, data=Carseats) %>% summary()
+```
+
+R has created a ShelveLocGood  and ShelveLocMedium dummy variables. Both coefficients are positive, which means these variables contribute to sales increase(Magnitude is larger for ShelveLocGood variable).
+- Contrast: returns the coding that R uses for the dummy variables. 
+```{r}
+attach(Carseats)
+contrasts(ShelveLoc)
+```
+
+### 3.6.7 Writing Functions
+As we have seen, R comes with many useful functions. However, we will often intersted in perfoming an iperation for which no function is available. In this setting, we may wants to write our own function. For instance, below, we provide a simple function that reads in the ISLR and MASS libraries, called LoadLibraries().
+- LoadLibraries(): ISLR and MASS
+
+We create the function. Note that 
+- +: the + symbols are printed by R and should not be typed in.
+- {}: The symbols informs R that multiple commands are about to be input
+
+
+```{r}
+library(ISLR)
+
+LoadLibraries=function()
+{
+  library(ISLR)
+  library(MASS)
+  print("The Libraries have been loaded.")
+}
+
+LoadLibraries
+function()
+  {
+    library(ISLR)
+    library(MASS)
+    print("The libraries have been loaded.")
+}
+
+LoadLibraries()
+```
+
+-------------------------------------------------
+# Chapter4: Classification
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 -------------------------------------------------
@@ -498,6 +716,8 @@ summary(pls.fit)
 ```
 
 The lowest cross vxalidation error occurs when only M is two partial leastdirectionfs are used.Å@
+
+# Chapter 7: Moving beyond linearity
 
 
 

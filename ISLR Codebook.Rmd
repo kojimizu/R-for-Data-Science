@@ -234,7 +234,7 @@ plot(cylinders, mpg, col="red", varwidth=TRUE,xlab="cylinders",ylab="NPG")
 ```
 
 
-
+-------------------------------------------------
 # Chapter3: Linear Regression
 ### 3.6.1 Laboratories
 ```{r}
@@ -465,14 +465,147 @@ LoadLibraries()
 
 -------------------------------------------------
 # Chapter4: Classification
+## 4.6: Lab - Logistic Regression, LDA, QDA and KNN
 
+### 4.6.1 The Stock Market Data
+We will begin by examining some numerical and graphical summaries of the Smarket data. 
+- dataset: Smarket data (ISLR Library)
+  - This dataset consists of percentage returuns for the S&P 500 stock index over 1,250 days (from 2001 - 2005)
+  - Volume: the number of shares traded on the previous day
+  - Today: the percentage return on the date in question
+  - Direction:  whether the market was Up or Down on this date
+  
+```{r}
+library(ISLR)
+names(Smarket)
+dim(Smarket)
+summary(Smarket)
+```
 
+The cor() function produces a matrix that contains all of the pairwise correlations among the predictors in a dataset. The first command below gives an error because the Direction variable is qualitative. 
+```{r}
+cor(Smarket)
+cor(Smarket[,-9])
+```
 
+As one would expect, the correlation between the lag variables and today's returns are close to zero. There appears to be little correlation between today's returns and previous days' returns. The only substantial correlation is between Year and Volume. 
 
+By plotting data we see thhat Volume is increasing over time. So to speak, the average number of shares traded daily incrased from 2001 t0 2005. 
+```{r}
+require(ggplot2)
+names(Smarket)
+attach(Smarket)
+plot(Volume)
+# ggplot(aes(x=Year, y=Volume),data=Smarket)+geom_point()
+```
 
+### 4.6.2 Logistic Regression
+Next, we will fit a logistic regression in order to predict Direction using Lag1 through Lag5 and Volume.
+- glm(): generalized linear models including logistic regression  
+ - syntax (argument): family
+ - logistic regression: family=binomial
 
+```{r}
+glm.fit=glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume, data=Smarket,
+            family=binomial)
+summary(glm.fit)
+```
 
+The smallest p-valueis associated with Lag1. The negative coefficients for this predictor suggests that if the market had a positive return yesterday, then it is less likely to go up today. However, the p-value is still large, and there is no clear evidence of real association between Lag1 and Direction. 
+We use the coef() function to access the coefficients for this fitted model.
 
+```{r}
+coef(glm.fit)
+summary(glm.fit)
+summary(glm.fit)$coef
+```
+
+The predict() function can be used to predict the probability that the market will go up, given values of the predictors. The type="response" option tells R to output probabilities of the form P(Y=1|X), as opposed to other information such as logit. 
+
+If no data set is supplied to the predict() function, then the probabilieis are computed for the training data that was used to fit the logitic regression model. Here we have printed only the first ten probabilities. Noted that these values correspond to the probability of the market going up, rather than down (because contrast() function indicates that R has created a dummy variable with a 1 for Up).
+```{r}
+glm.probs=predict(glm.fit, type="response")
+glm.probs[1:10]
+contrasts(Direction)
+```
+
+In order to make a prediction as to whether the market will go up or down on a particular day, we must convert these predicted probabilities into class labels, Up or Down. The following commands create a vector of class preditions based on whether the predicted probability of a market increase is greater  or less than 0.5.
+```{r}
+glm.pred=rep("Down",1250)
+glm.pred[glm.probs>0.5]="Up"
+```
+
+- First: creates a vector of 1,250 Down elements
+- Second:transforms to Up all elements for which the predicted probability of a market increase exceeds 0.5. 
+
+Given these predictions, the table() function can be used to produce a confusion matrix in order to determine how many observations were correctly or incorrectly classified. 
+```{r}
+table(glm.pred, Direction)
+(507+145)/1250
+mean(glm.pred==Direction)
+```
+
+The diagonal elements of the confusion matrix indicates correct predictions, while the off-diagonals represent incorrect predictions. Hence, our model corredctly predicted 52.2%...
+
+However, this result is misleading because we trained nad tested the model on the same set of 1,250 obs.Thus, 100-52.2=47.8% is the training error rate. In order to assess the accuracy of the logistic regression model, we examine how well it precits the held-out data. 
+
+To implement this strategy, we will first create a vector corresponding to obs from 2001 through 2004. Then, we will use this vector to create a held out dataset of observation from 2005. 
+
+```{r}
+train=(Year<2005)
+Smarket.2005=Smarket[!train,]
+dim(Smarket.2005)
+Direction.2005=Direction[!train]
+```
+
+The object train is a vector of 1,250 elements, corresponding to the observations in our dataset. The elements of the vector that correspond to observations in 2005 are set to TRUE, wherease those that correspond to observation in 2005 are set to FALSE. 
+- Object train: Boolean vector
+
+Boolean vectors can be used to obtain a subset of the rows/columns of matrix. the commance Smarket[train,] would pick out a submatrix of the stock market datadset, crresponding only to the dates before 2005.
+
+We now fit a logistic regression model using only the subset of the observations that correspond to dates  before 2005, using the subset argument. We then obtrain predicted probabilities of the stock market going up for each of the day in our test set.
+
+Notice that we have trained and tested our model on two completely separate data sets. Training was performed using only the dates before 2005, and testing was performed using only the dates in 2005. Finally, we compute the predictions for 2005, and compare them to the actual movements of the market over that time period.
+
+```{r}
+
+glm.fit2=glm(Direction~Lag1+Lag2,
+            data=Smarket, family=binomial, subset=train)
+glm.probs2=predict(glm.fit2,Smarket.2005,type="response")
+
+glm.pred2=rep("Down",252)
+glm.pred2[glm.probs2>0.5]="Up"
+
+table(glm.pred,Direction.2005)
+mean(glm.pred2==Direction.2005)
+mean(glm.pred2!=Direction.2005)
+106/(106+76)
+```
+
+Now the results appear to be more promissing: 56% of the daily movements have been correctly predicted. The confusion matrix suggests that on days when logistic regression predicts the market will decline, it is only correct 50% of the time. However, on days when it predicts an increase in the market, it has a 58% accuracy rate. 
+
+Suppose we want to predict the returns associated with particular values of Lag1 and Lag2. In particular, we want to predict Direction o a day when Lag1 and Lag2 equal 1.2 and 1.1, respectively, and on a day when they equal 1.5 and -0.8. We do this using the predict() function.
+
+```{r}
+predict(glm.fit2, newdata=data.frame(Lag1=c(1.2,1.5), Lag2=c(1.1,-0.8)),type="response")
+```
+
+### 4.6.3 Linear Discriminant Analysis
+Now we will perform LDA on the Smarket data. In R, we fit a LDA model using the lda() function.
+- lda(): MASS library
+- lda(): syntax is identical to glm() except for the absense of the family option. 
+
+We fit the model using only the observations before 2005.
+```{r}
+library(MASS)
+lda.fit=lda(Direction~Lag1++Lag2, data=Smarket,subset=train)
+lda.fit
+plot(lda.fit)
+```
+
+The LDA output indicates that ƒÎ1^=0.492, ƒÎ2^=0.508 (49.2% of the training obs correspond to days during which the market went down). 
+
+It also provides group means;
 
 
 

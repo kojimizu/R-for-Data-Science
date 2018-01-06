@@ -690,8 +690,9 @@ We will now perform KNN using knn() function. This functions works differently f
 
 Rather than a two-step apprach in which we first fit the model and use the model to make predictions, knn() forms predictions using a single command. 
 
-The function requires four inputs
-1 A matrix containing the predictors associated with the training data, labeled train.X below.
+The function requires four inputs:
+
+1. A matrix containing the predictors associated with the training data, labeled train.X below.
 2 
 3 
 4 

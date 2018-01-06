@@ -1,12 +1,20 @@
 ---
 output:
-  word_document: default
-  pdf_document: default
   html_document: default
+  pdf_document: default
+  word_document: default
 ---
 
 Chap2 code review: 12/27
-Chap3 code review: 12/28
+Chap3 code review: 12/28 - 1/5
+Chap4 code review: 1/5 - 1/6
+Chap5 code review: 1/6 -
+Chap6
+Chap7
+Chap8
+Chap9
+Chap10
+
 
 Introduction to Statistical Leaning by R
 # Chapter2: Statistical learning
@@ -355,7 +363,7 @@ summary(lm.fit1)
 lm.fit1=update(lm.fit,~.-age)
 ```
 
-###3.6.4 Interaction Terms
+### 3.6.4 Interaction Terms
 It is easy to include interaction terms in a linear model using lm() function.
 
 The sytntax lstat:black tells R to include an interaction term between lstat and black
@@ -598,6 +606,7 @@ Now we will perform LDA on the Smarket data. In R, we fit a LDA model using the 
 We fit the model using only the observations before 2005.
 ```{r}
 library(MASS)
+library(ISLR)
 lda.fit=lda(Direction~Lag1++Lag2, data=Smarket,subset=train)
 lda.fit
 plot(lda.fit)
@@ -605,9 +614,102 @@ plot(lda.fit)
 
 The LDA output indicates that ƒÎ1^=0.492, ƒÎ2^=0.508 (49.2% of the training obs correspond to days during which the market went down). 
 
-It also provides group means;
+The coefficients of linear discriminants output provides the linear combination of Lag1 and Lag2 that are used to from the LDA decision rule.
+
+In other words, these are multipliers of the elements of X=x.If -0642 * Lag1 - 0.514*Lag2 is large, then the LDA classifier will predict a market increase, otherwise, LDA will predict a market decline.
+
+The plot() function produces plots of the linear discriminants, obtained by computing -0.642*Lag1-0.514*+Lag2 for each of the training observations. 
+
+The predict() function returns a list with three elements.
+- first:class contains LDA's prediction about movement of the market.
+- second:posterior is a matrix whose k-th column contains the posterior probability that the corresponding obs belongs to te kth class.
+- third:x contains the linear descriminants
+
+```{r}
+lda.pred=predict(lda.fit,Smarket.2005)
+names(lda.pred)
+# "class", "posterior", "x"
+```
+
+As we observed in Section 4.5, the LDA and logistic regression predictions are almost identical.
+```{r}
+lda.class=lda.pred$class
+table(lda.class,Direction.2005)
+mean(lda.class==Direction.2005)
+```
+
+Applying a 50% threshold to the posterior probabilities allos us to recreate the predictions contained in lda.pred$class.
+```{r}
+sum(lda.pred$posterior[,1]>=.5)
+sum(lda.pred$posterior[,1]<.5)
+```
+
+Notice that the posterior probability output by the model correspondends to the probability that the market will decrease:
+```{r}
+lda.pred$posterior[1:20,1]
+lda.class[1:20]
+```
+
+If we wants to use a posterior distribution other than 50% to make predictions, then we could easily do so. For instance, suppose that we wish to predict a market decrease only if we are certain that the market will indeeed decrease on that day - say, if the posterior probability is least 90%.
+```{r}
+sum(lda.pred$posterior[,1]>.9)
+```
+
+No days in 2005 meet the threshold! In fact, the greatest posterior probability of decrease in all of 2005 was 52.02%.
 
 
+### 4.6.4 Quadratic Discriminant Analysis
+
+We will now fit a QDA model to the Smarket data. QDA is implemented in R using the qda() function.
+- qda(): MASS library
+ - syntax: identical to lda() function
+
+```{r}
+qda.fit=qda(Direction~Lag1+Lag2,data=Smarket,subset=train)
+qda.fit
+```
+
+The output contains the group means. But it does not contain the coefficients of the linear discriminants, because the QDA classifier involves a quadratic, rather than a linear, function of predictors. 
+
+The predict() function works in exactly the same fashon as for LDA.
+
+```{r}
+qda.class=predict(qda.fit,Smarket.2005)$class
+table(qda.class,Direction.2005)
+mean(qda.class==Direction.2005)
+```
+
+Interestingly, the QDA predictions are accurate almost 60% of the time, even though the 2005 data was not used to fit the model.
+
+This level of accuracy is quite impressive for stock market data, which is known to be quite hard to model accurately. This suggests that the quadratic form assumed by QDA may capture the true relation more accurately than linear forms assumed by LDA and logistic regression. However, we recommend evaluating this method's performance on a larger test set before betting that this approach will beat the market.
+
+### 4.6.5 K-Nearest Neighbors (K‹ß–T–@)
+
+We will now perform KNN using knn() function. This functions works differently from the other model-fitting functions that we have encounterd thus far.
+- knn() function: class library
+
+Rather than a two-step apprach in which we first fit the model and use the model to make predictions, knn() forms predictions using a single command. 
+
+The function requires four inputs
+1 A matrix containing the predictors associated with the training data, labeled train.X below.
+2 
+3 
+4 
+
+
+```{r}
+
+```
+
+
+### 4.6.6 An Application to Caravan Insurance Data
+
+```{r}
+
+```
+
+
+# Chapter5: Resampling Methods 
 
 
 

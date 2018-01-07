@@ -1,3 +1,14 @@
+
+```{r}
+library(knitr)
+
+pandoc('foo.md', format='html')  # HTML
+pandoc('foo.md', format='latex') # LaTeX/PDF
+pandoc('foo.md', format='docx')  # MS Word
+pandoc('foo.md', format='odt')   # OpenDocument
+```
+
+
 ---
 output:
   html_document: default
@@ -693,24 +704,152 @@ Rather than a two-step apprach in which we first fit the model and use the model
 The function requires four inputs:
 
 1. A matrix containing the predictors associated with the training data, labeled train.X below.
-2 
-3 
-4 
+2. A matrix containing the predictors associated with the data for which we wish to make predictions, labeled test.X below. 3. A vector containing the class labels for the training observations, labeled train.Direction below.
+4.  A value for K, the number of nearest neighborsto be used by the classifier.
 
+We use the cbind() function, short for column bind, to bind the Lag1 and Lag2 variable together into two matrices, one for the training set and the other for the test set. 
 
 ```{r}
-
+library(class)
+train.X=cbind(Lag1,Lag2)[train,]
+test.X=cbind(Lag1, Lag2)[!train,]
+train.Direction=Direction[train]
 ```
+
+Now the knn() function can be used to predict the market's movement for the data in 2005. We set a random seed before we apply knn() because if several obs are tied as nearest neighbors, then R will randomly break the tie. Thus,a seed must be set to ensure reproductivitiy of results.
+```{r}
+set.seed(1)
+knn.pred=knn(train.X,test.X,train.Direction,k=1)
+table(knn.pred,Direction.2005)
+(83+43)/252
+```
+
+The results using K=1 are not very good, since only 50% of the obs are correctly predicted. Of course, it maybe that K=1 results in an overly flexible fit to the data. Below, we repeat the analysis using K=3.
+```{r}
+knn.pred2=knn(train.X,test.X,train.Direction,k=3)
+table(knn.pred2,Direction.2005)
+mean(knn.pred2==Direction.2005)
+```
+
+The results have improved slightly. But increasing K further turns out to provide no further improvements. It appears that for this data, QDA provides the best results of the methods that we have examined so far.
 
 
 ### 4.6.6 An Application to Caravan Insurance Data
 
+We will apply the KNN approach to the Caravan dataset.
+- dataset: Caravan (ISLR library)
+ - includes 85 predictors that measure demographic characteristics for 5822 individuals
+ - Reponse variable is Purchase, which indicates whether or not a given individual purchase a caravan insurance policy
+ - only 6% purchased caravan insurance
 ```{r}
+library(ISLR)
+dim(Caravan)
+attach(Caravan)
+summary(Purchase)
+348/5822
+```
 
+Because the KNN classifier predicts the class of a given test observation by identifying the observations that are nearest to it, the scale of the variables matters. 
+
+Any variables that are on a large scale will have a much larger effect on the distance between the obs , and on the KNN classifier, than variables that are on a small scale.
+
+Example: 
+- dataset that contains two variables, salary anage (measured in dollars/years)
+- As far as KNN is concered, a difference of 1,000 in salary is enormous compared to a difference of 50 years in age
+- Consequently, salary will drive the KNN classification results, and age will have almost no effect
+
+A good way to handle this problem is to standardize the data so that all variables are give a mean of zero and a standard deviation of one. Then all variables will be on a comparable scale.
+- scale(): standardize
+
+In addition, we exclude column 86, due to qualitative Purchase variables
+```{r}
+standardized.X=scale(Caravan[,-86])
+var(Caravan[,1])
+var(Caravan[,2])
+var(standardized.X[,1])
+var(standardized.X[,2])
+```
+
+Now  every column of standardized.x has a standard deviation of one and a mean of zero.
+
+We now splot the obs into a test set, containing first 1000 obs, and a training set, the remaining obs.
+
+We fit a KNN model on the training data using K=1, and evaluate its performance on the test data.
+```{r}
+test=1:1000
+train.X=standardized.x[-test,]
+test.X=standardized.x[test,]
+
+train.Y=Purchase[-test]
+test.Y=Purchase[test]
+
+set.seed(1)
+knn.pred=knn(train.X, test.X,train.Y,k=1)
+mean(test.Y!=knn.pred)
+mean(test.Y!="No")
+```
+
+The vector test is numeric, with values from 1 through 1000. Typing standardized.X[test,] yields the submatrix of the data containing the obs whose indices range from 1 to 1000 whereas typing standardized.X[-test,] yields a submatrix containing the obs whose indices do not range from 1 to 1000.
+
+The KNN error rate on the 1,000 test obs is just under 12%. At first glance, this may apprea to fairly good. However, since only 6% customer purchased insurance, we could get the error rate down to 6% of customers purchased insurance, we could get the error rate down to 6% by always predicting No regardless of the values of the predictors.
+
+Suppose that there is some non-trivial cost to trying to sell insurance to a given individual. For instance, a salesperson must visit each potential customer. If the company tries to sell insurance to a random selection of customers, then the success rate will be only 6%, which maybe far too low give the costs involved. Instead, the company would like to try to sell insurance only to customers who are likely to by it. So the overall error rate is not of interest. Instead, the fraction of individuals that are correctly predicted to buy insurance is of interst. 
+
+It turns out that KNN with K=1 does far better than random guessing among customers that are predicted to buy insurance. Among 77 such customers, 9 or 11.7% actually do purchase insurance. This is double the rate that one would obtain from random guessing. 
+```{r}
+table(knn.pred,test.Y)
+9/(68+9)
+```
+
+Using K=3, the success rate increases to 19%, and with K=5, the rate is 26.7%. This is over four times the reate that results from randome guessing. It appears that KNN is finding some real patterns in a difficult data set. 
+```{r}
+knn.pred2=knn(train.X,test.X,train.Y,k=3)
+table(knn.pred2,test.Y)
+5/26
+
+knn.pred=knn(train.X,test.X,train.Y,k=5)
+table(knn.pred,test.Y)
+4/15
+```
+
+As a comparison, we can also fit a logistic regression model to the data. If we use 0.5 as the predicted probability cut-off for the clasifier, then we have a problem: only seven of the test obs are predicted to purchase insurance. 
+
+However, we are required to us a cut-off of 0.5. If we instead predict a purchase any time the predicted probability of purchase exceeds 0.25, we get much better results: we predict that 33 will prchase insurance, and we are correct for about 33% of these people. This is over five times better than random guessing. 
+
+```{r}
+glm.fit=glm(Purchase~.,data=Caravan,family=binomial, subset=test)
+
+glm.probs=predict(glm.fit,Caravan[test,],type="response")
+glm.pred=rep("No",1000)
+glm.pred[glm.probs<.5]="Yes"
+table(glm.pred,test.Y)
+
+glm.pred2=rep("No",1000)
+glm.pred2[glm.probs<.25]="Yes"
+table(glm.pred2,test.Y)
+11/(22+11)
+```
+
+-------------------------------------------
+# Chapter5: Resampling Methods 
+## 5.3 Lab: Cross-Validation and the Bootstrap
+
+We explore the resampling techniques covered in this chapter. Some of the commands in this lab may take while to run on PC.
+
+### 5.3.1 THe validation set approach
+We explore the use of the validation set approach to estimate the test error rates that result from fitting various linear models on the Auto dataset.
+- Dataset: Auto (ISLR lbirary)
+
+Before we begin, we use the set.seed() to set a seed for R's random number generator, so that the we can obtain precisely the same results. It is generally a good idea to set a random seed when performing an analysis such as cross-validation that contains an element or randomness.
+
+We begin by using the sample() to split the set of obs into two halves, by selecting a random subset of 196 obs out of the original 392 obs. We refer these obs as the training set. 
+```{r}
+library(ISLR)
+set.seed(1)
+train=sample(392,196)
 ```
 
 
-# Chapter5: Resampling Methods 
 
 
 
@@ -722,8 +861,7 @@ The function requires four inputs:
 
 
 
-
--------------------------------------------------
+-------------------------------------------
 ##6.6 Lab2 Ridge Regression and the Lasso
 
 we will use glmnet package for ridge regression and lasso.Unlike other functions, we must pass in an x matrix as well as y vector, not use y ~ x syntax for glmnet.

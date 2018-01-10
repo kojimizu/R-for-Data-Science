@@ -841,14 +841,73 @@ We explore the use of the validation set approach to estimate the test error rat
 - Dataset: Auto (ISLR lbirary)
 
 Before we begin, we use the set.seed() to set a seed for R's random number generator, so that the we can obtain precisely the same results. It is generally a good idea to set a random seed when performing an analysis such as cross-validation that contains an element or randomness.
+- set.seed()
 
 We begin by using the sample() to split the set of obs into two halves, by selecting a random subset of 196 obs out of the original 392 obs. We refer these obs as the training set. 
+- sample()
 ```{r}
 library(ISLR)
 set.seed(1)
 train=sample(392,196)
+
+names(Auto)
+?Auto
 ```
 
+We then use the sbuset option to fit a linear regression using only the observations corresponding to the training set.
+```{r}
+lm.fit=lm(mpg~horsepower, data=Auto, subset=train)
+
+require(ggplot2)
+ggplot(aes(x=horsepower,y=mpg),data=Auto)+geom_line()
+```
+
+We now use the predict() function to estimate the response for all 392 observations, and we use the mean() function to calculate the MSE of the 196 observations in the validation set.
+
+Note that the -train indext below selects only the observations that are not in the training set.
+- mean()
+```{r}
+attach(Auto)
+mean((mpg-predict(lm.fit,data=Auto))[-train]^2)
+```
+
+Therefore, the estimated test MSE for the linear regression fit is 26.14. We can use the poly() function to estimate the test error.
+- poly(): estimate test error for polynomial/cubic regressions
+
+```{r}
+lm.fit2=lm(mpg~poly(horsepower,2),data=Auto,subset=train)
+mean((mpg-predict(lm.fit2,data=Auto))[-train]^2)
+
+lm.fit3=lm(mpg~poly(horsepower,3),data=Auto,subset=train)
+mean((mpg-predict(lm.fit3,data=Auto))[-train]^2)
+```
+
+These error rates are 19.82, and 19.78 respectively. If we choose a different training set instead, then we obtain different errors on the valudation set.
+
+```{r}
+set.seed(2)
+train=sample(392,196)
+lm.fit=lm(mpg~horsepower,subset=train)
+mean((mpg-predict(lm.fit,data=Auto))[-train]^2)
+
+lm.fit2=lm(mpg~poly(horsepower,2),subset=train)
+mean((mpg-predict(lm.fit2,data=Auto))[-train]^2)
+
+lm.fit2=lm(mpg~poly(horsepower,3),subset=train)
+mean((mpg-predict(lm.fit3,data=Auto))[-train]^2)
+```
+
+
+### 5.3.2 Leave-One-Out Corss Validation (LOOCV)
+The LOOCV estimate can be automatically computed for any generalized linerar model using the glm() and cv.glm() functions. 
+IN the lab for Chapter4, we used the glm() function to perform logistic regression by passing in the family="binomial" argument. 
+
+But if we use glm() to fit a model without passing in the family argument, then it performs linear regression, just like the lm() function. So for instance, 
+- glm()
+- cv.glm()
+```{r}
+
+```
 
 
 

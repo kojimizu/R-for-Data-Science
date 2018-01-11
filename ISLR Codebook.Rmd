@@ -165,7 +165,7 @@ persp(x,y,fa,theta=30, phi=40)
 
 
 ### 2.3.3 Indexing Data
-We often wish to examine part of a set of data.　Suppose data is stored in the matrix A.Command [] will select element correspoding to specific row/column.We can also select multiple rows/columsn by providing vectors at the indices. 
+We often wish to examine part of a set of data.?@Suppose data is stored in the matrix A.Command [] will select element correspoding to specific row/column.We can also select multiple rows/columsn by providing vectors at the indices. 
 
 R treats a single row/column of a matri as a vector.
 The use of negative sign - in the index tell R to keep all rows/columns except these indicated in the index.
@@ -321,7 +321,7 @@ plot(lstat, medv, pch=1:20)
 ```
 
 Next, we examine some diagnostic plots, several for which were discussed in Section 3.3.3. Four diagnostic plots are automatically produced by applying the plot () function directly to output from lm().
-- par(): split display screen into separate panels (2×2 grid of panels)
+- par(): split display screen into separate panels (2?~2 grid of panels)
 ```{r}
 par(mfrow=c(2,2))
 plot(lm.fit)
@@ -623,7 +623,7 @@ lda.fit
 plot(lda.fit)
 ```
 
-The LDA output indicates that π1^=0.492, π2^=0.508 (49.2% of the training obs correspond to days during which the market went down). 
+The LDA output indicates that ??1^=0.492, ??2^=0.508 (49.2% of the training obs correspond to days during which the market went down). 
 
 The coefficients of linear discriminants output provides the linear combination of Lag1 and Lag2 that are used to from the LDA decision rule.
 
@@ -694,7 +694,7 @@ Interestingly, the QDA predictions are accurate almost 60% of the time, even tho
 
 This level of accuracy is quite impressive for stock market data, which is known to be quite hard to model accurately. This suggests that the quadratic form assumed by QDA may capture the true relation more accurately than linear forms assumed by LDA and logistic regression. However, we recommend evaluating this method's performance on a larger test set before betting that this approach will beat the market.
 
-### 4.6.5 K-Nearest Neighbors (K近傍法)
+### 4.6.5 K-Nearest Neighbors (K?ﾟ傍?@)
 
 We will now perform KNN using knn() function. This functions works differently from the other model-fitting functions that we have encounterd thus far.
 - knn() function: class library
@@ -830,6 +830,8 @@ table(glm.pred2,test.Y)
 11/(22+11)
 ```
 
+
+
 -------------------------------------------
 # Chapter5: Resampling Methods 
 ## 5.3 Lab: Cross-Validation and the Bootstrap
@@ -906,22 +908,118 @@ But if we use glm() to fit a model without passing in the family argument, then 
 - glm()
 - cv.glm()
 ```{r}
+glm.fit=glm(mpg~horsepower,data=Auto)
+coef(glm.fit)
 
+lm.fit=lm(mpg~horsepower,data=Auto)
+coef(lm.fit)
 ```
 
+The above results yiedl identical liner regression models. In this lab, we will perform linear regression using the glm() function rather than the lm() function, because the latter can be used together with cv.glm(). 
+cv.glm(): boot library
+```{r}
+library(boot)
+glm.fit=glm(mpg~horsepower,data=Auto)
+cv.err=cv.glm(Auto,glm.fit)
+cv.err$delta
+```
+
+The cv.glm() function produces a list with several components. The two numbers in the delta vector contain the corss-validation results.In this case, the numbers are identical (up to two decimal places), and correspond to LOOCV staistic given in (5.1). 
+
+We discuss a situation in which the two numbers differ. Our cross-validation estimate for the test error is approximately 24.23.
+
+We can repeat this procedure for increasingly complex polynomial fits. To automate the process, we use the for() function to initate a for loop which iteratively fits polynomial regressions for polynomials of order i =1 to i = 5, computes the associated cross-validation error, and stores it in the ith element of the vector cv.error.
+- for loop()
+- cv.error()
+
+We begin by initializing the vector. This command will likely take of a couple minutes to run.
+```{r}
+cv.error=rep(0,5)
+for (i in 1:5) {
+  glm.fit=glm(mpg~poly(horsepower,i),data=Auto)
+  cv.error[i]=cv.glm(Auto,glm.fit)$delta[1]}
+cv.error
+plot(cv.error)
+
+# cv.err=data.frame(cv.error)
+# ggplot(aes(x=y=cv.error),data=cv.err)+geom_point()
+```
+
+We see a sharp drop in the estimated test MSE between the linear and quadratic fits, but then no clear improvement from using higher-order polynomials.
 
 
+### 5.3.3. K-Fold Cross-Validation
+The cv.glm() function can also be used to implement k-fold CV. Below we use k=10, a common choice for k, on the Auto data set. 
+
+We once again set a random seed and initialize a vector in which we will store the CV errors corresponding to the polynomial fits of orders one to ten.
+
+```{r}
+set.seed(20)
+cv.error.10=rep(0,10)
+for(i in 1:10){
+  glm.fit=glm(mpg~poly(horsepower,i),data=Auto)
+  cv.error.10[i]=cv.glm(Auto,glm.fit,K=10)$delta[i]}
+cv.error.10
+```
+
+Notice that the computation time is much shrter than that of LOOCV (In principle, the computation time for LOOCV for a least squares linear model should be faster than for K-fold CV, due to availability of the time formula (5,2) for LOOCV).
+
+We still see little evidence that using cubic or higher-order polynomial terms leads to lower test error than simply using a quadratic fit.
+
+We saw in Sectioh 5.3.2 that the two numbers associated with delta are essentially the same when LOOCV is performed. When we instead perform k-fold CV, then the two numbers associated with delta differ slightly. The first is the standard k-fold CV estimate, as in (5.3). The second is a bias-corrected version. ON this data set, the two estimates are very similar to each other. 
 
 
+### 5.3.4 The Bootsrap
+We illustrate the use of the bootstrap in the simple example of Section 5.2, as well as an example involving estimating the accuracy of the linear regression model on the Auto data set.
 
+#### Estimating the Accuracy of a Statistic of Interest
+One of the great advantage of the bootstrap approach is that it can be applied in almost all situations. No complicated mathmatical calculations are required.
 
+Performing a bootstrap analysis in R entails only two steps.
+1. We must create a function that computes the statistic of interest
+2. We use the boot() function to perform the bootstrap by repeatedly sampling observations from the data set with replacement.
+- boot(): boot library
 
+The Portfolio dataset (ISLR package) in described in Section 5.2 To illustrate the use of the bootstrap on this data, we must create a function, alpha.fn(), which takes an input the (X,Y) data as well as a vector indicating which observations should be used to estimate ﾎｱ. The function then outputs the estimate for ﾎｱ based on the selected observations.
+```{r}
+alpha.fn=function(data,index){
+  X=data$X[index]
+  Y=data$Y[index]
+  return((var(Y)-cov(X,Y))/(var(X)+var(Y)-2*cov(X,Y)))}
+```
 
+This function retursns or outputs an estimate for ﾎｱ based on applying (5.7) to the observations indexed by the argument index. For instance, the following command tells R to estimate ﾎｱ using all 100 observations.
+```{r}
+alpha.fn(Portfolio,1:100)
+```
+
+The next command uses the sample() function to randomly select 100 observations from the range 1 t0 100, with replacement. This is equivalent to constructing a new bootstrap dataset and recomment ﾎｱ^ based on the new dataset.
+- sample()
+```{r}
+set.seed(1)
+alpha.fn(Portfolio, sample(100,100,replace=T))
+```
+
+We can implement a bootstrap analysis by performing this command many times, recording all of the corresponding estimates for ﾎｱ, and computing the resulting standard deviation. However, the boot() function automates this approach. Below, we produce R=1,000 bootstrap estimates for ﾎｱ.
+- boot():
+```{r}
+boot(Portfolio, alpha.fn,R=1000)
+```
+
+The final output shows the using the original data, ﾎｱ^=0.5758, and that the bootstrap estimate for SE(ﾎｱ^) is 0.0886.
+
+#### Estimating the accuracy of the linear regression model
+The bootstrap approach can be used to asess the viariability of the coefficient estimates and predictions from a statistical learining method. 
+
+Here we use the bootstrap approach in order to assess the variability of the estimates for ﾎｲ0 and ﾎｲ1, the intercept and slope terms for the linear regression model (uses horsepower to predict mpg in the Auto dataset). We will compare the estimates obtained using the bootstrap to those obtained using the formulas for SE(ﾎｲ0^) and SE(ﾎｲ1^) described in Section 3.1.2.
+
+We first create a simple function, boot.fn(), which takes in the Auto data set as well as a set of indices for the observations, and returns the intercept and 
+- boot.fn()
 
 
 
 -------------------------------------------
-##6.6 Lab2 Ridge Regression and the Lasso
+## 6.6 Lab2 Ridge Regression and the Lasso
 
 we will use glmnet package for ridge regression and lasso.Unlike other functions, we must pass in an x matrix as well as y vector, not use y ~ x syntax for glmnet.
 
@@ -947,29 +1045,29 @@ grid=10^seq(10,-2,length=100)
 ridge.mod=glmnet(x,y,alpha=0,lambda=grid)
 ```
 
-In addition, the glmnet() function performs ridge regression for an automatically selected range of λ values. In the above case, grid of values λ is selected from λ = 10^10 to 10^-2 (from only intercept to lewast squares fit).We can compute model fits for a particular value o λ thats not one of the original grid values.
+In addition, the glmnet() function performs ridge regression for an automatically selected range of ?? values. In the above case, grid of values ?? is selected from ?? = 10^10 to 10^-2 (from only intercept to lewast squares fit).We can compute model fits for a particular value o ?? thats not one of the original grid values.
 
 The glmnet() function standardizes the variables so that they are on the same scale. To cancel default setting, standardize=FALSE, cancel)
 
 ```{r}
-#20×100 matrix
+#20?~100 matrix
 dim(coef(ridge.mod)) 
 ```
 
-We expect the coefficient estimates to be smaller, in terms of l2 norm, when a large value of λ is used, as compared to when a small value of λ is used. THese are coefficnents  when λ=11,498, along with their l2 norms. 
+We expect the coefficient estimates to be smaller, in terms of l2 norm, when a large value of ?? is used, as compared to when a small value of ?? is used. THese are coefficnents  when ??=11,498, along with their l2 norms. 
 ```{r}
-## λ = 11,498
+## ?? = 11,498
 ridge.mod$lambda[50]
 coef(ridge.mod)[,50]
 sqrt(sum(coef(ridge.mod)[-1,50]^2))
 
-## λ = 705
+## ?? = 705
 ridge.mod$lambda[60]
 coef(ridge.mod)[,60]
 sqrt(sum(coef(ridge.mod)[-1,60]^2))
 ```
 
-We can use the predict() function, to obtain ridge regression coefficients for a new value of λ (λ=50). 
+We can use the predict() function, to obtain ridge regression coefficients for a new value of ?? (??=50). 
 ```{r}
 predict(ridge.mod,s=50,type="coefficients")[1:20,]
 ```
@@ -987,7 +1085,7 @@ tset=(-train)
 y.test=y[test]
 ```
 
-Next, we fit ridge regression on training set, evaluate its MSE (λ=4). Note the use of predict() is to get predictions for test set, by replacing type="coefficients" with the newx argument. 
+Next, we fit ridge regression on training set, evaluate its MSE (??=4). Note the use of predict() is to get predictions for test set, by replacing type="coefficients" with the newx argument. 
 ```{r}
 ridge.mod=glmnet(x[train,],y[train],alpha=0, lambda=grid,
                  thres=1e-12)
@@ -1000,16 +1098,16 @@ The test MSE is 122072. Note that if we had simply fit model with just an interc
 mean((mean(y[train])-y.test)^2)
 ```
 
-We could also get the same results by fiting a ridge regression model with a very large value of λ. Note that, 1e10=10^10
+We could also get the same results by fiting a ridge regression model with a very large value of ??. Note that, 1e10=10^10
 ```{r}
 ridge.pred=predict(ridge.mod,s=1e10,newx=x[test,])
 mean((ridge.pred-y.test)^2)
 
 ```
 
-Therefore, fitting a ridge regression model with λ=4 leads to much lower test MSE than fitting a model with just and intercept. We now check whether there is any benefit to performing ridge regression with λ=4 insted of just performing least square regressions. 
+Therefore, fitting a ridge regression model with ??=4 leads to much lower test MSE than fitting a model with just and intercept. We now check whether there is any benefit to performing ridge regression with ??=4 insted of just performing least square regressions. 
 
-Recall that least squares is simply ridge regression with λ=0
+Recall that least squares is simply ridge regression with ??=0
 ```{r}
 ridge.pred=predict(ridge.mod,s=0,newx=x[test,])
 mean((ridge.pred-y.test)^2)
@@ -1148,7 +1246,7 @@ pls.fit=plsr(Salary~., data=Hitters, subset=train,scale=TRUE,
 summary(pls.fit)
 ```
 
-The lowest cross vxalidation error occurs when only M is two partial leastdirectionfs are used.　
+The lowest cross vxalidation error occurs when only M is two partial leastdirectionfs are used.?@
 
 # Chapter 7: Moving beyond linearity
 

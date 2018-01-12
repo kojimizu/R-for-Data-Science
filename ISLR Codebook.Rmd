@@ -624,7 +624,6 @@ plot(lda.fit)
 ```
 
 The LDA output indicates that ??1^=0.492, ??2^=0.508 (49.2% of the training obs correspond to days during which the market went down). 
-
 The coefficients of linear discriminants output provides the linear combination of Lag1 and Lag2 that are used to from the LDA decision rule.
 
 In other words, these are multipliers of the elements of X=x.If -0642 * Lag1 - 0.514*Lag2 is large, then the LDA classifier will predict a market increase, otherwise, LDA will predict a market decline.
@@ -1013,9 +1012,59 @@ The bootstrap approach can be used to asess the viariability of the coefficient 
 
 Here we use the bootstrap approach in order to assess the variability of the estimates for β0 and β1, the intercept and slope terms for the linear regression model (uses horsepower to predict mpg in the Auto dataset). We will compare the estimates obtained using the bootstrap to those obtained using the formulas for SE(β0^) and SE(β1^) described in Section 3.1.2.
 
-We first create a simple function, boot.fn(), which takes in the Auto data set as well as a set of indices for the observations, and returns the intercept and 
+We first create a simple function, boot.fn(), which takes in the Auto data set as well as a set of indices for the observations, and returns the intercept and slope estimates for the linear regression model. 
 - boot.fn()
 
+Then we apply this function to the full set of 392 observations in order to compute the estimates of Beta0, Beta1 on the entire data set using the usual linear regression coefficient estimate formulas from Chapter3. Note that we do not need the {and} at the beginning and end of the function because it is only one line long.
+
+```{r}
+boot.fn=function(data,index)+
+return(coef(lm(mpg~horsepower, data=data, subset=index)))
+boot.fn(Auto,1:392)
+```
+
+The boot.fin() function can be used in order to create bootstrap estimates for the interecept and slope terms by randomly sampling from among the observations with replacement. Here we give two examples.
+- boot.fin()
+```{r}
+set.seed(1)
+boot.fn(Auto, sample(392,392,replace=T))
+boot.fn(Auto,sample(392,392,replace=T))
+boot.fn(Auto,sample(392,392,replace=T))
+```
+
+Next we use the boot() function to compute the standard errors of 1,000 bootstrap estimates for the intercept and slope terms. 
+- boot()
+```{r}
+require(boot)
+boot(Auto,boot.fn,1000)
+```
+
+This indicates that the bootstrap estimate for SE(Beta0) is 0.86, and that the bootstrap estimate for SE(Beta1) is 0.0074. As discussed in Section 3.1.2, standard formulas can be used to compute the standard errors for the regresion coefficients in a linear model. 
+
+These can be obtained using the summary() function.
+- summary()
+```{r}
+summary(lm(mpg~horsepower,data=Auto))$coef
+```
+
+The standard error estimates for $\hat{\beta_0}$ and $\hat{\beta_1}$ obtained using the formulas from Section 3.1.2 are 0.717 for te intercept and 0.0064 for the slope. 
+
+Interestingly, these are somewhat different from the estimates obtained using the bootstrap. Does this indicate a problem with the bootstrap? In fact, it suggets the opposite. Recall that the standard formulas given in Equation 3.8 on page 66 rely on cetrain assumptions. 
+
+For example, they depend on the unknown parameters $\sigma^2$, the noise variance. We then estimate $\sigma^2$ using the RSS. Now although the formula for the standard erros do not rely on the linear model being correct, the estimate for $\sigma^2$ does. 
+
+We see in Figure 3.8 on page 91 that there is a non-linear relationship in the data, and so the residuals from a linear fit will be inflated, and so will $\hat{\sigma^2}$. 
+
+Secondly, the standard formulas assume (somewhat unrealistically) that the $x_i$ are fixed, and all the variablity comes from the variation i the errors $\epsilon_i$. The bootstrap approach does not reply on any of these assumptions, and so it is likely giving a more accurate estimate of the standard errors of $\hat{\beta_0}$ and $\hat{\beta_1}$ than is the summary function. 
+
+Below we compute the bootstrap standard error estimates and the standard linear regression estimate that result from fitting the quadratic model to the data. Since this model provides a good fit to the data (Figure 3.8), there is now a better correspondence between the bootstrap estimates and the standard estimates of SE($\hat{\beta_0}$), SE($\hat{\beta_1}$) and SE($\hat{\beta_2}$).
+```{r}
+boot.fn=function(data,index)+
+  coefficients(lm(mpg~horsepower+I(horsepower^2),data=data,
+                  subset=index))
+set.seed(1)               
+boot(Auto,boot.fn,1000)
+```
 
 
 -------------------------------------------

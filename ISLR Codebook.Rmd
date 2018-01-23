@@ -1183,6 +1183,102 @@ coef(regfit.full,6)
 ```
 
 ### 6.5.2 Foward and Backward Stepwise Selection 
+We can also use the regusubsets() function to perform fward stepwise or backward stepwise selection, using the argument.
+- regsubsets()
+- method: method="foward" or method="backward"
+
+```{r}
+# foward stepwise selection
+regfit.fwd=regsubsets(Salary~.,data=Hitters, nvmax=19,method="forward")
+summary(regfit.fwd)
+
+#backward stepise selection
+regfit.bwd=regsubsets(Salary~.,data=Hitters,nvmax=19,method="backward")
+summary(regfit.bwd)
+```
+
+For instance, we see that using foward stepwise selection, the best one variable model contains only CRBI are the best two-variable model additional includes Hits.
+
+For this data, the best one-variable through six-variable models are each indentical for best subset and foward selection. However, the best seven-variable models indentified by foward stepwise selection, backward stepwise selection, and best subset selection are different. 
+```{r}
+coef(regfit.full,7)
+coef(regfit.fwd, 7)
+coef(regfit.bwd,7)
+```
+
+### Choosing Among Models Using the Validation Set Approach and Cross-Validation
+
+We just saw that it is possible to choose among a set of models of different sizes using $C_p$, BIC and adjusted $R^2$. We will now consider how to do this using the validation set and cross-validation approaches. 
+
+In order for these approaches to yield accurate estimates of the test error, we must use only the training observations to perform all aspects of model-fitting - including variable selection.
+
+Therefore, the determination ogf which model of a given size is best must be made using only training observaions. This point is subtle but important. If the full data set is used to perform the best subset selection step, the validation set errors and cross-validation errors that we obtain will not be accurate estimates of the test error. 
+
+In order to use the validation set approach, we begin by splitting the observations into a training set and a test set. We do this by creating a random vector, train, of elements equal to TRUE if the corresponding observation is in the training set, and FALSE otherwise. 
+
+The vector test has a $TRUE$ if the observation is in the test set, and a FALSE otherwise. Note that ! in the command to create test causes TRUEs to be switched to FALSEs and vice versa. We also set a random seed so that the user will obtain the same training set/test set split.
+```{r}
+set.seed(1)
+train=sample(c(TRUE,FALSE),nrow(Hitters),rep=TRUE)
+test=(!train)
+```
+
+Now, we apply regsubsets() to the training set in order to perform the best subset selection.
+```{r}
+regfit.best=regsubsets(Salary~., data=Hitters[train,],
+                       nvmax=19)
+```
+
+Notice that we subset the Hitters data frame directly in the call in order to access only the triaing subset of the data, using the expression Hitters[train,].
+
+We now compute the validation set error for the best model of each model size. We first make a model matrix from the test data.
+- model.matrix(): build X matri from data.
+```{r}
+test.mat=model.matrix(Salary~.,data=Hitters[test,])
+```
+
+We run a loop for each sizei, we extract the coefficients from regfit.best for the best moel of that size, multiply them into the appropriate columns of the test model matrix to form the predictions, and compute the test MSE.
+```{r}
+val.errors=rep(NA,19)
+
+for (i in 1:19){
+  coefi=coef(regfit.best,id=i)
+  pred=test.mat[,names(coefi)]%*%coefi
+  val.errors[i]=mean((Hitters$Salary[test]-pred)^2)
+}
+```
+
+We find that the vest model is the one that contains ten variables
+```{r}
+
+val.errors
+which.min(val.errors)
+coef(regfit.best,10)
+
+require(ggplot2)
+testB<-data.frame(val.errors)
+
+# approach 1
+testB$index<-c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19)
+# approach 2
+testB$index=rep(NA,19)
+for(i in 1:19){
+  testB$index[i]=i}
+
+ggplot(aes(x=index,y=val.errors),data=testB)+geom_line()
+
+```
+
+This was a little tedious, partly because there is no predict() method for regsubsets(). Since we will be using this function again, we can capture our steps above and write our own predict method. 
+```{r}
+predict.regsubsets=function(object,newdata,id,...){
+  form=as.formula(object$call[[2]])
+  mat=model.matrix(form,newdata)
+  coefi=coef(object,id=id)
+  xvars=names(coefi)
+  mat[,xvars]%*%coefi
+}
+```
 
 
 

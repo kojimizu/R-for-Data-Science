@@ -1099,7 +1099,7 @@ sum(is.na(Hitters))
 ```
 
 The regsubsets() function performs best subset selection by idenfifying the best model that contains a given number of predictors, where best is quantified using RSS. 
-- regsubsets()
+- regsubsets(): leaps library
 
 The syntax is the same as for lm(). The summary() command outputs the best set of variables for each model size. 
 ```{r}
@@ -1266,7 +1266,7 @@ for(i in 1:19){
   testB$index[i]=i}
 
 ggplot(aes(x=index,y=val.errors),data=testB)+geom_line()
-
+plot(testB,type="b")
 ```
 
 This was a little tedious, partly because there is no predict() method for regsubsets(). Since we will be using this function again, we can capture our steps above and write our own predict method. 
@@ -1280,8 +1280,55 @@ predict.regsubsets=function(object,newdata,id,...){
 }
 ```
 
+This function pretty much miics what we did above. The only complex part is how we extracted the formula used in the call to regsubsets(). We demonstrate how we use this function below, when we do cross-validation.
 
+Finally, we perform best subset selection on the full data set, and select the best ten-variable model. It is important that we make use of the full data set in order to obtain more accurate coefficient estimates. Note that we perform best subset selection on the full data set and select the best ten-variable model, rather than simply using the variable that were obtained from the training set, because the best ten-variable model on the full data set may differe from the corresponding model on the training set. 
+```{r}
+regfit.best=regsubsets(Salary~.,data=Hitters,nvmax=19)
+coef(regfit.best,10)
+```
 
+In fact, we see that the best ten-variable model on the full data set has a different set of variables than the best ten-variable model on the training set.
+
+We now try to choose among the models of different sizes using cross-validation. This approach is somewhat involved, as we must perform best subset selection within each of the k training sets. Despite this, we see that with its clever subsetting syntax, R makes this job quite easy. First, we create a vector that allocates each observation to one of k=10 folds, and we create a matrix in which we will store the results.
+```{r}
+k=10
+set.seed(1)
+folds=sample(1:k,nrow(Hitters),replace=TRUE)
+
+cv.errors=matrix(NA,k,19,dimnames=list(NULL,paste(1:19)))
+cv.errors
+```
+
+Now we write a for loop that performs cross-validation. In the jth fold, the elements of folds that equal j are in the test set, and the remainder are in the training set. We make our predictons for each model size (using our new predict() method),compute the test errors on the appropriate subsets, and store them in the appropriate slot in the matrix cv.errors.
+
+```{r}
+for (j in 1:k){
+  best.fit=regsubsets(Salary~.,data=Hitters[folds!=j,],
+                      nvmax=19)
+  for(i in 1:19){
+    pred=predict(best.fit,Hitters[folds==j,],id=i)
+    cv.errors[j,i]=mean((Hitters$Salary[folds==j]-pred)^2)
+  }
+}
+```
+
+This has give us a 10*19 matrix of which the (i,j)th element corresponds to the test MSE for the ith cross-validation fold for the best j-variable model. We use the apply() function to avarage over the columns of this matrix in order to obtain a vector for which the jth element is the cross-validation error for the j-variable model.
+- apply()
+```{r}
+mean.cv.errors=apply(cv.errors,2,mean)
+mean.cv.errors
+
+par(mfrow=c(1,1))
+plot(mean.cv.errors,type='b')
+```
+
+We see the cross-validation selemcts an 11-variable model. We now perform best subset selection on the full data set in order to obtain the 11-variable model. 
+
+```{r}
+reg.best=regsubsets(Salary~.,data=Hitters,nvmax=19)
+coef(reg.best,11)
+```
 
 
 ## 6.6 Lab2: Ridge Regression and the Lasso
@@ -1289,13 +1336,14 @@ predict.regsubsets=function(object,newdata,id,...){
 we will use glmnet package for ridge regression and lasso.Unlike other functions, we must pass in an x matrix as well as y vector, not use y ~ x syntax for glmnet.
 
 Dataset is Hitters data, and we predict Salary after removing missing values.
-- Model.matrix(): create x by 1. producing correspondings to 19 predictors, (2) automatically transforms any qualitative variables into dummy variables. 
+- Model.matrix(): create $x$ by 1. producing correspondings to 19 predictors, (2) automatically transforms any qualitative variables into dummy variables. 
 - glmnet(): the function only takes numerical values, thus quantitative inputs need to be transformed
 
 ```{r}
 require(ISLR)
 x=model.matrix(Salary~.,data=Hitters)[,-1]
 y=Hitters$Salary
+
 Hitters
 ```
 
@@ -1310,33 +1358,34 @@ grid=10^seq(10,-2,length=100)
 ridge.mod=glmnet(x,y,alpha=0,lambda=grid)
 ```
 
-In addition, the glmnet() function performs ridge regression for an automatically selected range of ?? values. In the above case, grid of values ?? is selected from ?? = 10^10 to 10^-2 (from only intercept to lewast squares fit).We can compute model fits for a particular value o ?? thats not one of the original grid values.
+In addition, the glmnet() function performs ridge regression for an automatically selected range of $\lambda$ values. In the above case, grid of values $\lambda$ is selected from $\lambda$= $10^10$ to $10^-2$ (from only intercept to leaast squares fit).We can compute model fits for a particular value of $\lambda$ that is not one of the original grid values.
 
 The glmnet() function standardizes the variables so that they are on the same scale. To cancel default setting, standardize=FALSE, cancel)
 
+Associated with each value of $\lambda$ is a vector of ridge regression coefficients, stored in a matrix that can be accessed by coef(). In this case, it is a 20*100 matrix, with 20 rows(one for each predictor, plus an intercept) and 100 columns (one for each value of $\lambda$)
+
 ```{r}
-#20?~100 matrix
 dim(coef(ridge.mod)) 
 ```
 
-We expect the coefficient estimates to be smaller, in terms of l2 norm, when a large value of ?? is used, as compared to when a small value of ?? is used. THese are coefficnents  when ??=11,498, along with their l2 norms. 
+We expect the coefficient estimates to be smaller, in terms of $l_2$ norm, when a large value of $\lambda$ is used, as compared to when a small value of $\lambda$ is used. THese are coefficnents  when $\lambda$=11,498, along with their $l_2$ norms. 
+
 ```{r}
-## ?? = 11,498
+## lambda = 11,498
 ridge.mod$lambda[50]
 coef(ridge.mod)[,50]
 sqrt(sum(coef(ridge.mod)[-1,50]^2))
 
-## ?? = 705
+## lambda = 705
 ridge.mod$lambda[60]
 coef(ridge.mod)[,60]
 sqrt(sum(coef(ridge.mod)[-1,60]^2))
 ```
 
-We can use the predict() function, to obtain ridge regression coefficients for a new value of ?? (??=50). 
+We can use the predict() function, to obtain ridge regression coefficients for a new value of lambda (e.g., lambda=50). 
 ```{r}
 predict(ridge.mod,s=50,type="coefficients")[1:20,]
 ```
-
 
 We now split samples into training set and test set to estimate test error. There are mainly two methods that we can apply.
 - method (1): Produce a random vector of TRUE, FALSE elements and select obs corresponding to TRUE for the training data
@@ -1346,11 +1395,12 @@ We first set a random seed so that results obtained will be reproducible.
 ```{r}
 set.seed(1)
 train=sample(1:nrow(x),nrow(x)/2)
-tset=(-train)
+test=(-train)
 y.test=y[test]
 ```
 
-Next, we fit ridge regression on training set, evaluate its MSE (??=4). Note the use of predict() is to get predictions for test set, by replacing type="coefficients" with the newx argument. 
+Next, we fit ridge regression on training set, evaluate its MSE ($\lambda$=4). Note the use of predict() is to get predictions for test set, by replacing type="coefficients" with the newx argument. 
+
 ```{r}
 ridge.mod=glmnet(x[train,],y[train],alpha=0, lambda=grid,
                  thres=1e-12)
@@ -1358,21 +1408,20 @@ ridge.pred=predict(ridge.mod, s=4, newx=x[test,])
 mean((ridge.pred-y.test)^2)
 ```
 
-The test MSE is 122072. Note that if we had simply fit model with just an intercept, we would have predicted each test obs using the mean of the training obs. In that case, we could compute the test set MSE as below.
+The test MSE is 122,072. Note that if we had simply fit model with just an intercept, we would have predicted each test obs using the mean of the training obs. In that case, we could compute the test set MSE as below.
 ```{r}
 mean((mean(y[train])-y.test)^2)
 ```
 
-We could also get the same results by fiting a ridge regression model with a very large value of ??. Note that, 1e10=10^10
+We could also get the same results by fiting a ridge regression model with a very large value of $\lambda$. Note that, 1e10=10^10
 ```{r}
 ridge.pred=predict(ridge.mod,s=1e10,newx=x[test,])
 mean((ridge.pred-y.test)^2)
-
 ```
 
-Therefore, fitting a ridge regression model with ??=4 leads to much lower test MSE than fitting a model with just and intercept. We now check whether there is any benefit to performing ridge regression with ??=4 insted of just performing least square regressions. 
+Therefore, fitting a ridge regression model with $\lambda$=4 leads to much lower test MSE than fitting a model with just and intercept. We now check whether there is any benefit to performing ridge regression with $\lambda$=4 instead of just performing least square regressions. 
 
-Recall that least squares is simply ridge regression with ??=0
+Recall that least squares is simply ridge regression with $\lambda$=0
 ```{r}
 ridge.pred=predict(ridge.mod,s=0,newx=x[test,])
 mean((ridge.pred-y.test)^2)
@@ -1392,7 +1441,7 @@ bestlam=cv.out$lambda.min
 bestlam
 ```
 
-From the above results, we see that the value of lambda that results in the smallest cross-validation error is 212. What is the test MSE associated with this value of lambda?
+From the above results, we see that the value of $\lambda$ that results in the smallest cross-validation error is 212. What is the test MSE associated with this value of lambda?
 
 ```{r}
 ridge.pred=predict(ridge.mod, s=bestlam, newx=x[test,])
@@ -1407,6 +1456,7 @@ predict(out, type="coefficients", s=bestlam)[1:20,]
 ```
 
 As expected, none of the coefficents are zero - ridge regression does not perform variable selection!
+
 
 ###6.6.2 The Lasso
 While the ridge regression with a wise choice of lambda can outperform least squares as well as the null model. We now ask whether the lasso can yield either a more accurate or a more interpretable model than ridge regression. 

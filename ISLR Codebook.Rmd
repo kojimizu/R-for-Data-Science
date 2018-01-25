@@ -1467,7 +1467,8 @@ lasso.mod=glmnet(x[train,],y[train],alpha=1,lambda=grid)
 plot(lasso.mod)
 ```
 
-We can see from the coefficient plot tat depending on the choice of tuning parameter (L1 norm), some of the coefficients will be exactly equal to zero. We now perform cross-validation and compute the associated test error.
+We can see from the coefficient plot that depending on the choice of tuning parameter (L1 norm), some of the coefficients will be exactly equal to zero. We now perform cross-validation and compute the associated test error.
+
 ```{r}
 set.seed(1)
 cv.out=cv.glmnet(x[train,],y[train],alpha=1)
@@ -1477,7 +1478,7 @@ lasso.pred=predict(lasso.mod,s=bestlam,newx=x[train,])
 mean((lasso.pred-y.test)^2)
 ```
 
-This is subtantially lowe tha the test set MSE of the null model and of least squares and very similar to the test MSE of ridge ression with lambda chosen by cv.
+This is subtantially lower than the test set MSE of the null model and of least squares and very similar to the test MSE of ridge ression with lambda chosen by cv.
 
 However, the lasso has a substantial advantage over ridge regression in that the resulting coefficient estimates are sparse. Here we see that 12 of the 19 coefficient estimates are exactly zero. So the lasso model with lambda chosen by cv contains only seven varables.
 
@@ -1492,6 +1493,7 @@ lasso.coef[lasso.coef!=0]
 ### 6.7.1 Principal Components Regression
 
 Principalcomponents regression (PCR) can be perfromed using the pcr() function, which is a part of the pls library. We now apply PCR to the Hitters data, in order to predict Salary. Again, ensure that the missing values have been remived from the data. 
+- pcr(): pls library
 
 ```{r}
 install.packages("pls")
@@ -1518,28 +1520,28 @@ We can also plot the cross-validation scores using the validationplot() function
 validationplot(pcr.fit,val.type="MSEP")
 ```
 
-We see that the smallest cv erro occurs when M=16 components are ued. This is barely fewer than M = 19, which amounts to simly performing least squares, because when all of the components are used in PCR no dimension resduction occurs. However, from the plot we also see that the cv erro is roughly the same when only one component is included in the model. This suggests that a model that uses just a small number of components might suffice. 
+We see that the smallest cv erro occurs when M=16 components are ued. This is barely fewer than M = 19, which amounts to simply performing least squares, because when all of the components are used in PCR no dimension resduction occurs. However, from the plot we also see that the cv error is roughly the same when only one component is included in the model. This suggests that a model that uses just a small number of components might suffice. 
 
 The summary () function also provides the percentage of variance explained in the predictors and in the responses using different numbers of components. This concept is discussed in greater detail in Chapter 10.
 
-We can think of this as the amount of information about the predictors or setting M=1 only caputures 38.31% of all variance, or information in the predictors. In contract, M=6 increases the value to 88.63%. IF we were to use all M=p=19 components, this would increase to 100%. 
+We can think of this as the amount of information about the predictors or setting M=1 only caputures 38.31% of all variance, or information in the predictors. In contrast, M=6 increases the value to 88.63%. IF we were to use all M=p=19 components, this would increase to 100%. 
 
 We now perform PCR on the training data and evaluate its test set performance. 
 
 ```{r}
 set.seed(1)
 pcr.fit=pcr(Salary~.,data=Hitters, subset=train, scale=TRUE,
-            valudation="CV")
+            validation="CV")
 validationplot(pcr.fit, val.type="MSEP")
 ```
 
-Now, we find that the lowest cv erro occurs when M=7 coponent are used. We compute the test MSE as follows. 
+Now, we find that the lowest cv error occurs when M=7 coponent are used. We compute the test MSE as follows. 
 ```{r}
 pcr.pred=predict(pcr.fit,x[test,],ncomp=7)
 mean((pcr.pred-y.test)^2)
 ```
 
-This test set MSE is competitive with the results obtained using ridge ressionand the lasso. However, as a result of they way PCR is impletement, the final model is more difficult to interpret, because it does not perform any kind of variable selection or even direclty produce coefficent estimates.
+This test set MSE is competitive with the results obtained using ridge regression the lasso. However, as a result of the way PCR is implemented, the final model is more difficult to interpret, because it does not perform any kind of variable selection or even direclty produce coefficent estimates.
 
 Finally, we fit PCR on the full data set, using M=7, the number of components identified by cross-validation.
 
@@ -1551,6 +1553,7 @@ summary(pcr.fit)
 ### 6.7.2 Partial Least Squares 
 We impletement partial least squares using the plsr() function, also in the pls library.
 The syntax just like tha of the pcr() function.
+-plsr()
 
 ```{r}
 set.seed(1)
@@ -1561,6 +1564,49 @@ pls.fit=plsr(Salary~., data=Hitters, subset=train,scale=TRUE,
 summary(pls.fit)
 ```
 
-The lowest cross vxalidation error occurs when only M is two partial leastdirectionfs are used.?@
+The lowest cross validation error occurs when only M=2 partial least squares directionfs are used.We now evluate the corresponding test set MSE. 
+```{r}
+pls.pred=predict(pls.fit,x[test,],ncomp=2)
+mean((pls.pred-y.test)^2)
+```
 
+The test MSE is comparable to, but slightly highere than, the test MSE obtained using ridge regression, the lasso, and PCR.
+
+Finally we perform PLS using the full data set, using M=2, the number of components identified by cross-validation.
+```{r}
+pls.fit=plsr(Salary~.,data=Hitters,scale=TRUE,ncomp=2)
+summary(pls.fit)
+```
+
+Notice that the percentage of variance in Salary that the two-component PLS fit explains, 46.40% is almost as much as that explained using the final seven-component model PCR fit, 46.69%. This is because PCR only attemps to maximize the amount of variance explained in the predictors,while PLS searches for directions that explain variance in both the predictors and the response. 
+
+------------------------------------------
 # Chapter 7: Moving beyond linearity
+## 7.8 Lab: Non-linear Modeling 
+
+In this lab, we re-analyze the Wage data considered in the examples through out this chapter, in order to illustrate the fact that many of the complex non-linear fitting procedures discussed can be easily implemented in R. We begin by loading the ISLR library.
+- Wage data: ISLR library
+
+```{r}
+library(ISLR)
+attach(Wage)
+```
+
+### 7.8.1 Polynomial Regression and Step Functions
+We now examine how Figure 7.1 was produced. We first fit the model using the following command: 
+```{r}
+fit=lm(wage~poly(age,4),data=Wage)
+coef(summary(fit))
+```
+
+This syntax fits a linear model, using the lm() function, in order to predict wage using a fourth-degree polynomial in age: poly(age,4). The poly() command allows us to avoid having to write out a long formula with powers of age. The function returns a matrix whose columns are a basis of orthogonal polynomials, which essentially means that each column is a linear combination of the variables age, age^2, age^3 and age^4. 
+
+However, we can also use poly() to obtain age, age^2, age^3 and age^4 directly, if we prefer. We can do this by using the raw=TRUE argument to the poly function. 
+- poly(): 
+
+
+
+
+
+
+

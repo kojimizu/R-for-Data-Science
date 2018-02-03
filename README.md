@@ -1,6 +1,4 @@
-# ISLR
+# Udemy Courses
 
-Introduction to Statistical Learning with Application of R
-by 
-
-This notebook covers each chapter's lab codes.
+R Level 1 - EY Badge Blonze
+From 2018 January 

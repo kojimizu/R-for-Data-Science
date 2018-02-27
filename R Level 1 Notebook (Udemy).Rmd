@@ -1,7 +1,7 @@
 ---
 title: "R Level 1"
 author: "KM"
-date: "2018蟷<ef>??1??<9b><88>5譌･"
+date: "2018.02.14･"
 output:
   html_document: default
   pdf_document: default
@@ -9,7 +9,7 @@ output:
 ---
 
 # Section 1
-## Lecture 3: 
+## Lecture 3:
 
 R: programming language
 RStudio: GUI (Graphical User Interface)
@@ -787,15 +787,14 @@ myFilter
 
 newiris<-cbind(iris,myFilter)
 newiris
-
 ```
 
 
 Create the data frame virginica.s which consists of: 
 - sepal.Length and sepal.width of the newiris dataset
 ```{r}
-newirisext<-newiris[,c("Sepal.Length","Sepal.Width")
-newirisext
+#newirisext<-newiris[,c("Sepal.Length","Sepal.Width")
+#newirisext
 
 virginica.s=newiris[myFilter==T, c("Sepal.Length","Sepal.Width")]
 virginica.s
@@ -855,7 +854,858 @@ c=c(4.6,5.5,8.9,11.3)
 testfunction(c,b)
 ```
 
-## LEcture 46: Ifelse function
+
+# Section 4
+## Lecture 46: ifelse statement and summary
+
+Ifelses statement is used to incorporate logical conditions in functions.Ifelse is different from the IF statement (loop section), and the syntax is ifelse (logical condition or test, #calculation if yes, calculation if no).
+
+```{r}
+x=4
+ifelse(x<5,"target",NA)
+
+# Example no, condition is not met
+x=10
+ifelse(x<5, "target",NA)
+```
+
+Ths can even be nested, and we watch the correct number of brackets. 
+Let's create our test vector, and the result should be of same length as this vector.
+```{r}
+x=c(4,5,6)
+ifelse(x<5,"smaller than",
+       ifelse(x==5,"equal to","greater than"))
+```
+
+The ifelse statement can be used in functions
+```{r}
+ifelsefun<-function(y,z){
+  ifelse(y<7,y+z, "above target")}
+ifelsefun(4,2)
+ifelsefun(40,7)
+```
+
+## Lecture 47: Function Exercises 
+
+1. Moving averages 
+Create the function movingavg.
+This function is supposed to calculate the moving averages from the vector x, take 3 numbers to calculate your moving avg.
+
+e.g., x=(1:20)
+(1+2+3)/3,(2+3+4)/3...
+
+2. Matrix Function
+Create the function matrixfun. This function returns a matrix which doubles every ODD number within the initial matrix. Test your function with the matrix (1:4).
+
+
+3. Ifelse
+Create the function nestedfun.
+It should take into consideration the following conditions
+- x<-9:y+9
+- x=9:x
+- x=12:NA
+- else:x-y
+
+```{r}
+
+# 1 Solution
+
+x=1:20
+
+movingavg = function(x){
+  I <- length(x)
+  (x[1:(l-2)]+x[2:(l-1)]+x[3:l])/3
+  }
+
+y<-movingavg(1:20)
+
+# 2 Solution 
+
+matrixfun<-function(mat){
+  mat[mat%%2==1]<-2*mat[mat%%2==1]
+  # module operator for odd numbers 
+  mat}
+
+mat<-matrix(1:4,ncol=2)
+matrixfun(mat)
+
+
+# 3 Solution 
+nestedfun=function(x,y){
+  ifelse(x<9,y+9,ifelse(x==9,x,ifelse(x==12,NA,x-y)))
+}
+
+x=5:15
+y=1:11
+
+nestedfun(x,y)
+```
+
+## Lecture 50: Introduction to Loop and If statement 
+Loops in R allow us to repeate an operation. In R, you may find the following loops: FOR, WHILE and REPEAT. Plese take care about the brackets. The most common mistake when it comes to loops is not having all brackets closed/opened. You need the curly brackets{} to perform the command line in loop.
+
+Loops come very often together with the if statement.
+
+If statement, we can control which commands to execute under the specific conditions. Most of the time it comes with the else alternative. 
+- Syntax: if (condition) {commands if T} else {commands if F}
+note that the else part is optional
+
+```{r}
+
+x=10
+
+# Either formula works 
+if(x<15){y=T}
+if(x<15)z=T
+
+# When you have a short line with only one command, curly brackets are not needed, but it is recommended to use brackets to avoid mistakes. 
+
+# introducing the else part 
+if(x<9){y=T}else{y=F}
+
+# Ideal structure of if else codes 
+
+if (x<11){
+  y=T
+}else{
+  y=F
+}
+
+# By using else if you can nest numerous commands (e.g., three commands)
+
+x=7
+
+(if(x<7){
+  y=T
+} else if (x==7){
+  y="Target"
+}else{
+  y=F
+})
+```
+
+## Lecture 51: For loop
+For loops allow a cetain operation to be repeated a fix nr of times. This is oppsed to the while loop where the rep nr is not prefixed. This syntax looks like this: for (name in vecot){commands}
+2
+```{r}
+for (i in 1:15){print(i)}
+for (z in 1:15){print(z)}
+```
+
+Variable names does not matter although you will see i quite often. 
+
+To skip certain elements in the loop:next
+```{r}
+for (i in 1:12){
+  if(i==3)
+    next
+  print(i)
+  }
+```
+
+To break/stop the loop:break 
+```{r}
+for (i in 1:12){
+  if(i==3)
+    break
+  print(i)
+}
+```
+
+Break and Next are useful arguments which are also working in the other loop type.
+
+Let us create the Fibonacci sequence, in this case the fdirst 20 numbers. This is a famous sequence of numers which is used e.g., in stock market predictions. It starts with 2*1 and continues with the summation of the 2 preceding elements. 
+
+With the first line we create an empty vector
+```{r}
+Fibonacci=c()
+```
+
+We define the first two numbers, and we create the loop to calculate positions3 to 20 
+```{r}
+(Fibonacci[1]=Fibonacci[2]=1)
+for (i in 3:20){Fibonacci[i]=Fibonacci[i-2]+Fibonacci[i-1]}
+Fibonacci
+```
+
+## Lecture52:  While loop
+If we want to repeate statements, but we do not yet know about the pattern of repetition. As long as the condition holds the calculation is performed. 
+- Syntax: while (condition){commands}
+
+1. X meets condition (command in curly brackets is performed)
+```{r}
+x=4
+while(x<5){
+  x=x+10
+  print(x)
+}
+```
+
+2. Y does not meet condition 
+```{r}
+y=6
+while(y<5){
+  y=y+10
+  print(y)
+}
+```
+
+Let us walk through another Fibonacci example. We want to know all Fibonacci numbers below 400, and we do not know many there are so we use the while loop.
+
+- We create the first 2 numbers
+```{r}
+Fi1=1
+Fi2=1
+```
+
+- The basic Fibonacci vector,mnote that I put only Fi2 in it to have only 2x1 at the beginning. The loop is going to fill the vector step by step. 
+```{r}
+Fibonacci=c(Fi2)
+
+# With the while statement, we start the loop and define 400 as our condition
+while (Fi2<400) {
+  Fibonacci=c(Fibonacci,Fi2)
+  oldFi2=Fi2 # to convert Fi2 to the old Fi2 value, which later on gets Fi1
+  Fi2=Fi1+Fi2 # to update the latest number
+  Fi1=oldFi2 # to update Fi1 to the old Fi2
+}
+Fibonacci
+```
+
+## Lecture 53: Repeate Loop
+This loop is used infrequently - however sometimes it can be useful. The idea is to repeate a cetain statement endlessly (difference to FOR). With the break statement, we terminate the loop.
+- Syntax: repeat {statement} if (condition) break
+
+```{r}
+x=1
+repeat{
+  x=x+3
+  if (x>99)
+    break
+  print(x)
+}
+```
+
+Note that the position of the print command determins if x-3 or x is printed. This can be seen in the last number output. 
+
+```{r}
+x=1
+repeat{
+  x=x+3
+  print(x)
+  if(x>99)
+    break
+}
+```
+
+## Lecture 54: Excercise
+1. Create a simple simple loop ranging from 10:40. 
+Print all te numbers and insert "My first FOR loop in R" when i is 22.
+
+2. 
+a: choose an appropriate loop to print all numbers <1000 in the lynx dataset
+b: now print te dataset as follows
+- trapping<1000 should be replaced by "Low trapping rate"
+- traping >1000 should appear as the actual number
+- trapping=1000 should be replaced by "Target rate"
+### hint: watch the breaket and use else if
+
+3. While loop: if you look at the example code for the Fibonacci numbers which we calculated in the lecture, can we work out a wat to do the calculation without using oldFib?
+
+```{r}
+#1: solution 
+for (i in 10:40){
+if (i==22)
+  print("My first FOR loop in R")
+  print(i)
+}
+
+#2-a: solution
+require(lynx)
+lynx
+names(lynx)
+(state=row.names(lynx))
+edit(lynx)
+
+for (i in lynx){
+  if(i<1000)
+    print(i)
+}
+
+data.frame(lynx)
+plot(lynx)
+
+#2-b: solution
+for (i in lynx){
+  if(i<1000){
+    print("Low trapping rate")
+  } else if (i>1000){
+    print(i)
+  }else{
+    print("Target rate")
+  }
+}
+
+#3: solution
+Fi1=1
+Fi2=1
+Fibonacci=c(Fi2)
+
+while (Fi2<400) {
+  Fibonacci=c(Fibonacci,Fi2)
+  oldFi2=Fi2 
+  Fi2=Fi1+Fi2 
+  Fi1=max(Fibonacci)
+}
+Fibonacci
+
+```
+
+4. (HARD) Write a function to calculate all prime numbers up to 100, starting from 2. In the solution, we are using the erastosthenes method (the oldest known systematic method)
+hint: function "any" may help, modules division %%
+```{r}
+
+Primevec=function(n){
+  if(n>=2){
+    s=seq(2,n)
+    p=c()
+    for(i in seq(2,n)){
+      if (any(s==1)){
+        p=c(p,i)
+        s=c(s[(s%%i)!=0],i)
+      }}
+    return(p)}else{
+    stop("Input at least 2")
+  }}
+Primevec(100)
+
+
+
+PrimVec = function(n){
+ # to start from 2
+ if (n>=2) {
+ # to further specify the sequence we want to work with
+ s = seq(2,n)
+ # p will be the container for our primes,
+ # numbers will be moved from s to p step by step if they meet the
+criteria
+ p = c()
+ # we start the loop
+ for (i in seq(2,n)){
+ # we use any to check that i (of this loop round) is still in s, multiples of i will be removed
+ if(any(s==i)){
+ # we store i if it meets our criteria in p together with the previous p
+ p = c(p,i)
+ # to search for numbers with a remainder at modulus division
+ s = c(s[(s%%i) != 0],i)
+ }}
+ return(p) }
+ # to specify the output if n < 2 (optional)
+ else{
+ stop("Input at least 2")
+ }}
+Primvec(100)
+
+```
+
+## Section57:Introduction to apply family
+An elegant way to do loops
+
+- Apply (arrays - matrices)
+- tapply (vectors can be split in different subsets)
+- lapply(the whole subfamily is for vectors or lists)
+- sapply(user firendly version of lappy)
+- vapply(similar to sapply, modified return value )
+- replicate (random nr generation)
+
+- rapply(similar to lapply)
+- eapply(environment, generates a list)
+- mapply(mutivariate, similar to sapply)
+bydata frames, similar to tapply, factors needed, splits the df und does calculus on subset. 
+
+### APPLY
+```{r}
+
+# apply 
+
+# apply(X, Margin, Fun,...)
+(X = matrix(c(1:9),nr=3,byrow=T))
+
+# Mrgin::1 for row, 2 for col
+apply(X,1,mean) # gives the mean of every row
+apply(X,2,mean) # gives the mean of every column
+
+apply(X,1,plot) # even graphics functions are permissible
+```
+
+### TAPPLY
+```{r}
+# tapply
+?tapply
+
+
+# We use tapply to work with subsets of vectors 
+# tapply factor (given by the INDEX) determins which group 
+tapply(1:4,c(3,3,3,3),sum,simplifiy=F)
+# To get two groups 
+tapply(1:4, c(3,3,3,4),sum,simplify = F)
+# Simplify gets just another output
+tapply(1:4,c(3,3,3,4),sum,simplify=T)
+
+```
+
+### BY
+BY is similar to tapply, but can be used for dataframes. Data can be split into subsets.
+```{r}
+?by
+head(iris)
+
+by(iris[1:4],iris$Species,colMeans)
+
+E we need to specify which column we want to work with []
+by(iris[2:4],iris$Species,colMeans)
+```
+
+## Lecture 59: Eapply, sapply, lapply
+### eapply
+```{r}
+?eapply
+
+# create an environment
+e<-new.env()
+e$e1<-(3:8)
+e$e2<-(56:61)
+e
+eapply(e,mean)
+
+```
+
+### lappy (whole subfamily)
+```{r}
+?lapply
+
+# we use lappy for lists
+mylist<-list(a=(1:10),b=(45:77))
+mylist
+
+# result has same length at the list (here 2)
+resultapply<-lapply(mylist,sum)
+resultapply
+
+# or vectors
+myvector<-c(1:20)
+lapply(myvector,sum)
+
+```
+
+### sapply
+```{r}
+?sapply
+resultssapply <- sapply(mylist,sum) 
+resultssapply
+
+# we do get the same results as lapply, however, the ouput is different. In this case, we get a userfriendly vec or matrix. 
+```
+
+## Lecture60: Vapply, replicate, mapply
+### vapply
+```{r}
+?vapply
+
+# similar to sapply but the output can be specified
+# classic example is fivenum function (five nr summary)
+resultsvapply <- vapply(mylist,fivenum,
+                        c(Min.=0,"1st Qu."=0,Median=0,
+                          "3rd Qu."=0,Max.=0))
+resultsvapply
+
+```
+
+Result is a matrix with row names = output functions and col names=list names. 
+
+### replicate
+This allows for replication of random number generation (Result is a matrix).
+```{r}
+resultsreplicate<-replicate(7,runif(10))
+resultsreplicate
+```
+
+### mapply
+Mapply is similar to sapply but multivariate, and functions are applied in different levels.
+```{r}
+?mapply
+mapply(rep,1:4,4:1)
+
+# That means number 4 is rep 4*, number 2 is rep 3*, etc.
+# recycling (length must be a multiple)
+
+mapply(rep,1:8, 4:1)
+```
+
+nr 1 and nr 5 should be rep 4* in this case. 
+This is a good way to work with different elements of a list (list$element.name).
+
+## Lecture 61: rapply and summary
+### rapply
+This function is similar to lapply.
+```{r}
+?rapply
+list1<-list(a=c(1:5),b=c(6:10))
+list1
+
+rapply(list1,sum)
+rapply(list1,sum,how="list")
+
+# default to how is "unlist", which in fact is a vector.
+# Other options are "list" and "rep"
+
+a=c(TRUE,TRUE,TRUE)
+b=c(1:3)
+
+# use the class argument to apply the function only to this class of the mixed list
+list2<-list(a=a,b=b)
+list2
+
+rapply(list2, median, class="integer")
+# the class argument is a good way to handle mixed lists 
+```
+
+## Lecture 62: Apply Family Exercises 
+
+1. IF you take a look at the 4 functions: rowSums, rowMeans,colSums, colMeans
+Could we use the apply function get the same results?
+
+
+2. mapply:create 2 lists consisting of 3 elements each. All elements have the same length. Get the sum and mean of all ements of list 1 and element 2 and 3 from list 2. The results should be 2 vectors (sum, mean) of the same length as the elements
+
+
+3. Generate a vector of 100 random nrs (rnorm)
+There are 3 groups: gr1 has numbers 1:40, gr2(41-70) and gr3(71-100). Get the sum and the mean of those groups by using a suitable function of the apply family.
+
+4. Create a matrix of 4 rows and 5 columns with random normal distributed numbers with mean 8. Make the result reproducible. Calcuate the mean for every row. 
+
+5. Create a mixed list (3 components) of 2*3 numeric values and 3 logicals. Tha means a is logical, b and c are numeric. Choose a suitable function and calculate the sum of two numeric components. 
+
+```{r}
+
+# 1. Apply 
+(X = matrix(c(1:9),nr=3,byrow=T))
+
+# Mrgin::1 for row, 2 for col
+apply(X,1,mean)
+apply(X,1,sum)
+apply(X,2,mean) 
+apply(X,2,sum) 
+
+# 2. Mapply
+a <- c(1:5)
+b <- c(4:8)
+c <- c(8:12)
+d <- c(16:20)
+f <- c(20:24)
+
+list1 <- list(a=a,b=b,c=C)
+list2 <- list(d=d,e=e,f=f)
+
+mapply(sum,list1$a,list1$b,list1$c,list2$e,list2$f)
+mapply(mean,list1$a,list1$b,list1$c,list2$e,list2$f)
+
+# 3. Random Number Generation
+x <- rnorm(100)
+y <- c(rep(1,times=40),rep(2,times=30),rep(3,times=30))
+
+tapply(x,y,sum)
+tapply(x,y,mean)
+
+# 4. Matrix for random number
+set.seed(34)
+g <- replicate(5,rnorm(4,8))
+apply(g,1,mean)
+
+# 5. Mxied matrix for logical and random number
+a <- c(F,T,F)
+b <- c(4.3,6.7,5.9)
+c <- c(4.3,6.7,5.9)
+(mylist=list(a=a,b=b,c=c))
+rapply(mylist,sum,class="numeric")
+
+```
+
+# Section 7: Graphs in R
+## Lecture 65: Graphs in R
+Recommended package: ggplot2 and lattice 
+
+```{r}
+?par
+par()
+
+par(bty="u")
+plot(lynx)
+
+
+```
+
+### Boxplots
+Boxplots are perfect way to compare distributions of different groups, which allow a good overview: min, max,med. quantiles 1 and 3, outliers. They often come together with ANOVA. standard tool for publications. 
+
+```{r}
+?sleep
+head(sleep)
+sleepboxplot=boxplot(data=sleep,extra~group,
+                     min="Change in sleep duration",
+                     col.main="red",ylab="change in hrs",xlab="drug")
+
+attach(sleep)
+means=by(extra,group,mean)
+points(means,col="red")
+```
+
+Change the orentation of the boxplot: horizontal=T
+```{r}
+horizontalboxplot=boxplot(data=sleep,extra~group,ylab="",xlab="",
+                         horizontal=T)
+```
+
+To intergrate different colours for te boxplots
+```{r}
+horizontalboxplot <- boxplot(data=sleep,extra~group,
+                             ylab="",xlab="",horizontal=T,
+                             col=c("gray","light blue"))
+```
+
+## Lecture 68: Exporting Graphs
+```{r}
+par(bty="o")
+plot(c(4,6,7),c(8,3,5),las=0,pch=20)
+par()
+colours()
+example(points)
+```
+
+## Lecture 69: Boxplot Excersize
+1. get familar with dataset: plantGrowth
+2. Perform a boxplot stratfied by the three treatment groups
+3. remove the box surrounding the plot
+4. resemble the heading as below 
+5. name the boxes in the x axes
+6. insert a blue dot for the mean in each box
+
+```{r}
+?PlantGrowth
+head(PlantGrowth)
+d <- PlantGrowth
+
+require(stats)
+par(bty="n")
+boxplot(data=PlantGrowth,weight~group)
+
+means <- by(PlantGrowth$weight,PlantGrowth$group,mean)
+
+boxplot(data=PlantGrowth,weight~group,ylab="plant weight",main="Treatment Effect \n on plant growth", cex.main=1.5,col.main="darkblue",names=c("Control","Treatment1","Treatment2"))
+points(means,col="blue",pch=20)
+```
+
+## Lecture 71: Piecharts
+Piecharts are quite often used for sales and marketing purposes. They are said to be able to manipulate the perception not often used in scientifit papers.
+```{r}
+?pie
+
+# To create the slices and define size
+slices=c(40,20,40)
+
+# Name labes of the slices - WATCH the length
+countries=c("US","UK","Other")
+
+# To add the slice size to the labels 
+countries=paste(countries,slices)
+
+# To further specify the labels
+countries=paste(countries,"%",sep="")
+
+pie(slices,labels=countries,
+    col=c("red","blue","white"),main="Sales Distribution")
+
+?iris
+head(iris)
+attach(iris)
+values=table(Species)
+labels=paste(names(Values))
+pie(Values,labels=labels,main="Species Distribution")
+
+# 3D effect
+# we need the library "plotrix"
+install.packages("plotrix")
+library(plotrix)
+
+pie3D(slices, labels=countries,explode=0.05,
+      col=c("red","blue","white"),main="Sales Distribution")
+```
+
+## Lecture 72: Histograms
+Histogram gives a good ide of probability distribution. Histograms are divided into intervals or bins. 
+```{r}
+?hist
+
+# Breaks determine the interval length
+# We have the Sturgens also as preset
+# We can define breaks ourselves 
+
+?cars
+ourdata=cars$speed
+hist(ourdata)
+
+# As you can see the breaks are not perfect
+
+hist(ourdata,labels=T,breaks=c(0,5,10,20,30))
+hist(ourdata,labels=T, breaks=10)
+hist(ourdata,labels=T,ylim=c(0,10),breaks=10)
+
+
+# Fit the axes for the cuve
+hey=hist(ourdata,breaks=10)
+xaxis=seq(min(ourdata),max(ourdata),length=10)
+yaxis=dnorm(xaxis,mean=mean(ourdata),sd=sd(ourdata))
+yaxis=yaxis*diff(hey$mids)*length(ourdata)
+
+## Add the normal curve
+lines(xaxis,yaxis,col="light blue")
+
+# we can change from frequency to density
+hist(ourdata, freq=F, breaks=10)
+
+# and add the density line
+lines(density(ourdata),col="blue",lwd=2)
+```
+
+## Lecture 73: Exercise and solution histograms
+
+1. Get familar with the lynx dataset
+2. Plot a simple histogram
+3. Choose the right break number (right bin number)
+4. Adjust heading and labs accoding to graph
+5. Adjust the y axis scale horizontally
+6. Insert the count number in the graph
+6. Adjsut the graph area that every count number is visible
+8. Add the coloration to the graph: hint - color vector
+9. Add second heading line: hint - mtext
+```{r}
+
+hist(lynx,breaks=9,ylim=c(0,70),las=1,
+     labels=T, col=c("White","Green"),
+     main="Annual Lynx Trappings",xlab="Number of lynx treappings\n per year")
+
+```
+
+## Lecture 74: Advanced scatterplots and legends 
+### Advanced scatterplots
+We can plot several xy pars in one plot.
+```{r}
+set.seed(67)
+x=rnorm(10,5,7)
+y=rpois(10,7)
+z=rnorm(10,6,7)
+t=rpois(10,9)
+
+# at first we create a simple scatter plot
+
+plot(x,y,col=123,pch=10,main="Multi scatterplot",
+     col.main="red",cex.main=1.5,xlab="indep",ylab="depend")
+
+# Now we add another layer on our scatterplot
+points(z,t,col="blue",pch=4)
+
+# add the last one 
+points(y,t,col=777,pch=9)
+
+legend(-6,5,9,legend=c("level 1","level 2","level 3"),
+       col=c(123,"blue",777),pch=c(10,4,9),cex=0.65,bty="n")
+
+# This gives us a three layer multi scatterplot
+```
+
+### LEGENDS
+We can add a legend to be able to understand our layered scatterplot. The first two numbers specify the position on the x y scale. Than we have legend names, colours (col) and sympols (pch) to be used in the 
+```{r}
+legend(-6,5,9,legend=c("level 1","level 2","level 3"),
+       col=c(123,"blue",777),pch=c(10,4,9))
+```
+
+## Lecture 75: Exercise and solution scatterplots
+1. Create the follwing vectors
+```{r}
+x=1:5
+y=rep(4,5)
+x1=1.1:5.1
+y1=5:1
+```
+
+2. Now plot those 3 level in your scatterplot (x-y, x1-y1,x1-x)
+```{r}
+
+plot(x,y,xlab="",ylab="",
+     cex.main=1.3,col.main=777,pch=3,col="red",bty="n")
+points(x1,y1,col="green",pch=10)
+points(x1,x,col="light blue",pch=9)
+
+legend(1,3.5,legend=c("level 1","level 2","level 3"),
+       col=c("red","green","blue"),pch=c(3,8,9),cex=0.75,bty="n")
+```
+
+# Section 8: Advanced topic: working with strings
+## Lecture 77: Working with strings 
+
+Strings is a type of data (mainly text data). 
+Quotation"" are used to specify data as a string (character)
+- mystring <- "this is a string!"
+
+Strings are used for scraped data (e.g., twitter, Google), text based data (e.g., sentiment analysis) and text mining. 
+
+To handle strings correcltly, R base offers useful features to handle strings (e.g., gsub). In addition, a sublanguage (regular expression)i sused and add-ons are available such as "stringr" and "gsubfunc"
+
+Important notes: According to your location/computer, characters (e.g., from Twitter messages) may be encoded or used differently in your R session. For example, you might sometimes scrape texts is cyrillic or mandarin. Hence, usage of regular exrpession mght be slightly different.
+```{r}
+# changing the cases
+tolower("Graphs and histograms")
+toupper("Graphs and Histograms")
+
+# splitting the string is a single character values
+strsplit("Graphs and Histograms",NULL)
+
+# splitting string after each space
+strsplit("Graphs and Histograms","")
+
+
+
+```
+
+## Lecture 78:Working with strings - gsub
+Gsub famly is useful for substitution in strings. 
+
+```{r}
+# lets get a character vector with 2strings 
+teststring <- c("my teststring to explain how substition with my R base works","another teststring for My example of gsub and sub")
+
+# output
+teststring
+
+# 1. structure of the sub/gsub family
+gsub("my","OUR",teststring)
+
+# 2. difference 
+
+```
+
+
+
+
+# Section 9: Using the R commander GUI 
+
+
+
+
+
+
+
 
 
 

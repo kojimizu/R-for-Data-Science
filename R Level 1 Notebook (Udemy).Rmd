@@ -1692,13 +1692,129 @@ teststring
 gsub("my","OUR",teststring)
 
 # 2. difference 
+sub("my","OUR",teststring)
+
+# 3. working with cases - see the last string MY
+gsub("my","OUR",teststring,ignore.case=T)
+
+# 4. working with numbers - deleting numbers
+numberstring <- c("3445 is GReater than 23 - @!$")
+numberstring
+
+# we need to check the regular expression syntax to see how digits are encoded.
+gsub("\\d","",numberstring)
+
+# now we go to the other way round and replace anything not being a digit
+gsub("\\D","",numberstring)
+
+# 5. avoid the spaces
+gsub("\\s","",numberstring)
+
+# 6. advanced methods 
 
 ```
 
+## Lecture 79: Working with strings - gsub advanced
+
+Syntax
+- \\d:digit, 0,1,2,...,9
+- \\D: not digit
+- \\s: space 
+- \\S: not space
+- \\w: word
+- \\t: tab 
+- \\n: new line
+- ^: beginning of the string 
+
+```{r}
+## 6. advanced methods 
+
+# lets exchange specific letters with "Q"
+gsub("[iot]","Q",numberstring)
+
+# removing punctuation
+gsub("[[:punct:]]","",numberstring)
+
+# removing anything but graphical characters
+gsub("[^[:graph:]]","",numberstring)
+
+# package stringer offers several useful functions for string handling
+install.packages("stringer")
+library(Stringer)
+# adding strings together
+str_c(c(numberstring,teststring),sep="")
+# we can count the ocurences of a specific symbol in an element
+str_count(numberstring,"3")
+
+```
+
+## Lecture 81: Working with strings - Library stringr
+When you want to check functions, access the help for the package.
+
+Package stringer offers several useful functions for string handling.
+```{r}
+library(stringr)
+
+teststring <- c("my teststring to explaing how substitution with my R base", "another testsring for my example of gsub and sub")
+
+numberstring <- c("3445 is GReater than 23 - @!$", "Tom coded 11 JAva scripts and 23 python scripts")
+
+# adding strings together
+str_c(c(numberstring,teststring),sep="")
+
+# we can count the ocurrences of a specific symbol in an element
+str_count(numberstring,"3")
+
+# we can locate the first and last position of a symbol in a given string
+str_locate_all(numberstring,"3")
+
+# replacement similar to sub - first occurence
+str_replace(numberstring,"\\d","")
+
+# and gsub - all occurences
+str_replace_all(numberstring,"\\d","")
+
+```
+
+library(gsubfn) can be used to incroporate functions to gsub.
+
+## Lecture 82: working with strings exercise
+
+```{r}
+ourstring <- c("Tom found 74 apples","Is this a question",
+               "How many $ and % doEs it cost?")
+```
+
+Questions
+1. put the string to complete lowercase
+2. remove the punctuation
+3. remove the spaces
+4. remove the % sign (if you have it on your keyboard)
+5. use str_extract_all from stringer to see which element contains "is"
+```{r}
+#1. solution
+(ourstring = tolower(ourstring))
+
+#2. solution
+(outstring=gsub("[[:punct:]]","",ourstring))
 
 
+#3. solution 
+(ourstring=gsub("\\s","",ourstring))
+
+#4. solution
+(ourstring=gsub("%","",ourstring))
+
+#5 solution
+str_extract_all(ourstring,"is")
+```
 
 # Section 9: Using the R commander GUI 
+
+GUI in R commander 
+```{r}
+install.packages("Rcmdr")
+```
 
 
 

@@ -1,0 +1,193 @@
+
+
+# R for Data Science and Machine Learning
+## Section 6
+### Lecture 11: Course notes 
+### Lecture 12: Guide to RStudio
+### Lecture 13: Introduction to R Basics 
+### Lecture 16: Basic data types 
+
+```{r}
+# lecture 25: Creating a matrix 
+
+goog <- c(450,451,452,445,468)
+msft <- c(230,231,232,233,220)
+stocks <- c(goog,msft)
+stocks.matrix=matrix(stocks,byrow=T,nrow=2)
+stocks.matrix
+
+days <- c('Mon', 'Tue', 'Wed', 'Thu', 'Fri')
+st.names <- c("goog","msft")
+
+colnames(stocks.matrix) <- days
+rownames(stocks.matrix) <- st.names
+print(stocks.matrix)
+```
+
+# Section 8
+## Lecture 26: Matrix
+```{r}
+# matrix 
+mat <- matrix(1:25,byrow=T,nrow=5)
+mat
+mat*2
+mat/2
+mat^2
+
+mat[,c(1,2)]
+
+mat*mat
+mat %*% mat
+```
+
+## Lecture 27: Matrix operation
+
+```{r}
+goog <- c(450,451,452,445,468)
+msft <- c(230,231,232,233,220)
+
+stocks <- c(goog,msft)
+
+stocks.matrix=matrix(stocks,byrow=T,nrow=2)
+stocks.matrix
+
+days <- c('Mon', 'Tue', 'Wed', 'Thu', 'Fri')
+st.names <- c("goog","msft")
+
+colnames(stocks.matrix) <- days
+rownames(stocks.matrix) <- st.names
+print(stocks.matrix)
+```
+
+By using the above stock matrix, we practive matrix operations. 
+```{r}
+# sum calculation
+colSums(stocks.matrix)
+rowSums(stocks.matrix)
+
+# row means calculation
+rowMeans(stocks.matrix)
+
+# rbind - FB was used as a new row name
+FB <- c(111,112,113,120,145)
+tech.stocks <- rbind(stocks.matrix,FB)
+
+avg <- rowMeans(tech.stocks)
+avg
+
+tech.stocks <- cbind(tech.stocks,avg)
+tech.stocks
+
+```
+
+## Lecture28: Matrix selection and indexing
+```{r}
+mat <- matrix(1:50,byrow=TRUE,nrow=5)
+mat[1,]
+mat[,]
+mat[1:3,]
+```
+
+## Lecture29: Factors and categorical matrices
+
+- Nominal categorical - no order
+- Ordinal categorical - order
+
+```{r}
+animal <- c('d','c','d','c','c')
+id <- c(1,2,3,4,5)
+
+# character class -> factor
+class(animal)
+factor(animal)
+
+# factor 
+fact.ani <- factor(animal)
+ord.cat <- c('cold','med','hot')
+temps <- c('cold','med','hot','hot','hot','cold','med')
+temps
+summary(temps)
+
+# factor level 
+fact_temp <- factor(temps,ordered=TRUE,levels=c('cold','med','hot'))
+fact_temp
+summary(fact_temp)
+
+```
+
+
+## Lecture30: Matrix exercises 
+```{r}
+# R Basic Exercise
+#1. two to the power of five
+2^5
+#2 stock price vector/matrix
+stock.prices=c(23,27,23,21,34)
+stock.prices
+#3 matrix row name
+stock.prices=matrix(c(23,27,23,21,34))
+rownames(stock.prices)=c("Mon","Tues","Wed","Thu","Fri")
+stock.prices
+#4 average(mean) computation
+mean(stock.prices[,1])
+colMeans(stock.prices)
+#5. 
+over.23 <- stock.prices>23
+stock.prices[over.23]
+
+max(stock.prices)
+max.price <- stock.prices==max(stock.prices)
+max.price
+
+stock.prices[max.price]
+```
+
+```{r}
+# R Matrix Exercises
+# Ex 1: 
+require(magrittr)
+A <- c(1,2,3) %/% print(A)
+B <- c(4,5,6) %/% print(B)
+
+mat <-matrix(A,byrow=T,nrow=1)
+matrix <- cbind(mat,B)
+matrix <- rbind(mat,B)
+
+rownames(matrix) <- c("A","B")
+
+# Ex 2:
+mat <- matrix(1:9,byrow=T,nrow=3)%/% print(mat)
+
+# Ex 3:
+is.matrix(mat)
+
+# Ex 4:
+mat2 <- matrix(1:25,byrow=T,nrow=5) 
+print(mat2)
+
+# Ex 5:
+mat2[2:3,2:3]
+
+# Ex 6:
+mat2[4:5,4:5]
+
+# Ex 7:
+sum(mat2)
+sum <- rowSums(mat2)
+mat3 <- rbind(mat2,sum)
+mat3
+sum(mat3[6,])
+
+# Ex 8:
+help("runif")
+ranmat <- matrix(dnorm(20),nrow=4,ncol=5)
+ranmat2 <- matrix(runif(20,min=1,max=100),nrow=4)
+ranmat2
+```
+
+
+
+
+
+
+

@@ -185,8 +185,236 @@ ranmat2 <- matrix(runif(20,min=1,max=100),nrow=4)
 ranmat2
 ```
 
+# Section 9: Data Frame
+## Lecture 33: Data Frame Basics
+```{r}
+head(state.x77)
+class(state.x77)
 
+state.x77.d <- data.frame(state.x77)
+head(state.x77.d)
+dim(state.x77.d)
+summary(state.x77.d)
+```
 
+### simple data frame 
+```{r}
+days <- c("Mon","Tue","Wed","Thur","Fri")
+temp <- c(22.2,21,23,24.3,25)
+rain <- c(T,T,F,F,T)
+df <- data.frame(days,temp,rain)
+```
+
+## Lecture34: data frame selection and indexing 
+```{r}
+# data frame overview
+df
+df[1,]
+
+# column select by word
+df[,'rain']
+df[1:5,c('days','temp')]
+
+## column select by $
+df$days
+
+# bracket notation
+df['days']
+
+# subset function
+subset(df,subset=(rain==TRUE))
+subset(df,subset=(temp>23.0))
+subset(df,subset = temp>23.0)
+
+sorted.temp <- order(df['temp'])
+sorted.temp
+df[sorted.temp,]
+
+desc.temp <- order(-df$temp)
+df[desc.temp,]
+```
+
+## LEcture35:Overview of data frame operations (Part1)
+
+```{r}
+empty <- data.frame()
+empty
+
+c1 <- 1:10
+
+letters
+c2 <- letters[1:10]
+
+df <- data.frame(c1,c2)
+df <- data.frame(colnames.1=c1,col.names.2=c2)
+df
+```
+
+### read/write csv
+```{r}
+# read csv
+write.csv(df,file='saved_df.csv')
+df2 <- read.csv('saved_df.csv')
+df2
+```
+
+### Getting information about data frame
+```{r}
+nrow(df)
+ncol(df)
+colnames(df)
+rownames(df)
+str(df)
+summary(df)
+```
+
+```{r}
+# change name of column
+colnames(df) <- c("test1","test2")
+df$test1
+
+# refer specific row/column
+df[[5,2]]
+df[[5,'test2']]
+df[[5,'test1']] <- 9999
+df
+
+df[1,]
+```
+
+mpgcars dataset 
+```{r}
+names(mtcars)
+rownames(mtcars)
+head(mtcars)
+
+# get vector values in specific row/column
+mtcars$mpg
+mtcars[,'mpg']
+mtcars[,1]
+
+mtcars[['mpg']]
+
+#data frame
+mtcars['mpg']
+mtcars[c("mpg","cyl")]
+```
+
+## Lecture36: Overview of data frame operations (Part2)
+
+```{r}
+df2 <- data.frame(test1=2000,test2="new")
+df2
+
+require(magrittr)
+dfnew <- rbind(df,df2) %/% print(df)
+df$newcol <- 2*df$test1
+
+# copy columns
+df$newcol.copy <- df$newcol %/% print(df)
+df[,"newcol.copy2"] <- df$newcol %/% print(df)
+
+# column names
+colnames(df) <- c("1","2","3","4","5") %/% print(df)
+df$`4` <- c(0,0,0,0,0,0,0,0,0,0)
+
+df[1:10,]
+df[1:3,]
+
+# data frame head
+head(df)
+head(df,5)
+
+# exclude specific rows/columns
+df[-2,]
+
+head(mtcars)
+mtcars[mtcars$mpg>20,]
+
+require(dplyr)
+class(mtcars)
+
+# filter / selection functions
+mtcars2 <- filter(mtcars, mpg>20&cyl==6) 
+select(mtcars,mpg)
+
+mtcars[mtcars$mpg>20 & mtcars$cyl==6,]
+mtcars[(mtcars$mpg>20)&(mtcars$cyl==6),c("mpg","cyl","hp")]
+subset(mtcars,mpg>20&cyl==6)
+
+head(mtcars)
+mtcars[,c(1,2,3)]
+is.na(mtcars)
+
+# check any missing point
+any(is.na(df))
+any(is.na(mtcars$mpg))
+
+df[is.na(df)] <- 0
+mtcars$mpg[is.na(mtcars$mpg)] <- mean(mtcars$mpg)
+```
+
+## Lecture 37: Data Frames Training Exercises
+
+Ex.1 Recreate data frame
+```{r}
+Age=c(22,25,26)
+weight=c(150,165,120)
+Sex=c("M","M","F")
+df <- data.frame(Age,weight,Sex)
+rownames(df) <- c("Sam","Frank","Amy") %/% print(df)
+```
+
+Ex.2 Check if mtcars is a dataframe using is.data.frame()
+```{r}
+class(mtcars)
+is.data.frame(mtcars)
+```
+
+Ex.3 Use as data.frame() to convert a matrix into a dataframe
+```{r}
+mat <- matrix(1:25,ncol=5) %/% print(mat)
+as.data.frame(mat)
+mat
+(mat_df <- data.frame(mat)) 
+```
+
+Ex.4 Set the built-in data frame mtcars as a variable df. We'll use this df variable for the rest of the excersize.
+Ex.5 First 6 rows 
+Ex.6 What is the average mpg value for all the cars
+Ex.7 select the columns, am, gear and carb
+Ex.8 create a new column called performance
+Ex.9 2 decimal places by round()
+Ex.10 average mgp for cars with more than 100hp and wt value more than 2.5
+Ex.11 What is the mpg of the Hornet Sportabout?
+```{r}
+# Ex.7
+(df <- mtcars)
+head(df)
+mean(mtcars$mpg)
+
+# Ex.8
+filter(mtcars, cyl==6)
+mtcars[mtcars$cyl==6,]
+mtcars[,c("am","gear","carb")]
+mtcars$per <- df$hp/df$wt
+head(mtcars)
+
+# Ex.9
+any(is.na(mtcars$per))
+mtcars$per <- round(mtcars$per,2)
+head(mtcars)
+
+# Ex.10
+mtcars3 <- subset(mtcars,hp>100,wt>2.5)
+mean(mtcars3$mpg)
+
+# Ex.11
+df
+df['Hornet Sportabout',]$mpg
+```
+
+## Lecture 
 
 
 

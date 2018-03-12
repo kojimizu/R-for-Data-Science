@@ -414,7 +414,116 @@ df
 df['Hornet Sportabout',]$mpg
 ```
 
-## Lecture 
+# Section 10: List in R
+## Lecture 39: List Basics
+```{r}
+v <- c(1,2,3)
+m <- matrix(1:10,nrow=2)
+df <- mtcars
+
+class(v)
+class(m)
+class(df)
+
+my.list <- list(v,m,df)
+my.list
+my.list[[1]]
+class(my.list)
+
+# list assignment with name
+my.named.list <- list(sample.vec=v,my.matrix=m,sample.df=df)
+my.named.list$sample.vec
+
+double.list <- c(my.named.list,my.named.list)
+double.list
+
+str(my.named.list)
+```
+
+## Lecture 41: CSV files with R
+```{r}
+write.csv(mtcars,file="my.example.csv")
+ex <- read.csv("my.example.csv")
+ex
+
+help(read.csv)
+```
+
+## Lecture 42: Excel files with R
+```{r}
+install.packages("readxl")
+require(readxl)
+
+# excel load
+excel_sheets('C:/Users/kojiKM.mizumura/Desktop/Sample-Sales-Data.xlsx')
+df <- read_excel('C:/Users/kojiKM.mizumura/Desktop/Sample-Sales-Data.xlsx',sheet="Sheet1")
+head(df)
+sum(df$Value)
+
+entire.workbook <-lapply(excel_sheets('C:/Users/kojiKM.mizumura/Desktop/Sample-Sales-Data.xlsx'),read_excel,path='C:/Users/kojiKM.mizumura/Desktop/Sample-Sales-Data.xlsx')
+entire.workbook
+
+```
+
+```{r}
+install.packages("xlsx")
+library(xlsx)
+head(mtcars)
+write.xlsx(mtcars,"output_example.xlsx")
+```
+
+## Lecture 43: SQL with R
+
+Connecting R to SQL is actually simple - RODBC library
+
+```{r}
+install.packages("RODBC")
+library(RODBC)
+
+myconn <- odbcConnect("Database_Name",uid="User_ID",pwd="password")
+data <- sqlFetch(myconn,"TableName")
+querydat <- sqlQuery(myconn,"SELECT*FROM table")
+close(myconn)
+```
+
+- MYSQL: 
+The RMySQL package proides an intervace to MySQL
+- Oracle:
+The ROracle package provides an interface for Oracle
+- JDBC: 
+The RJDBC package procides access to database throught a JDBC database.
+
+```{r}
+install.packages("RPostgreSQL")
+help(RPostgreSQL)
+??RPostgreSQL
+```
+
+
+## Lecture 44: Web Scraping with R
+HTML and CSS, pipe operator are required for understanding this lecture. 
+
+rvest library
+Below is a simple example of using rvest, but the best way to see a good demo of rvest is through the built-in demos by using:
+- www.import.io
+
+```{r}
+demo(package='rvest')
+```
+
+Now if you are familiar with HTML and CSS a very useful library is rbest. Below we will go ver a simple example from RStudio:
+
+```{r}
+
+```
+
+
+
+```{r}
+
+```
+
+
 
 
 

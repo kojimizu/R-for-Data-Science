@@ -508,23 +508,281 @@ Below is a simple example of using rvest, but the best way to see a good demo of
 - www.import.io
 
 ```{r}
-demo(package='rvest')
+demo(package="rvest")
+demo(package="rvest",topic="tripadvisor")
 ```
 
-Now if you are familiar with HTML and CSS a very useful library is rbest. Below we will go ver a simple example from RStudio:
+Now if you are familiar with HTML and CSS a very useful library is rbest. Below we will go ver a simple example from RStudio. Imagine we would like to scrape some information about te Lego Movie from IMDB. We start by downloading and parsing the file with html():
 
 ```{r}
-
+library(rvest)
+lego_movie <- read_html("http://www.imdb.com/title/tt1490017/")
 ```
 
+To extract the rating, we start with Seletor Gadget to figure out which css selector matches the data we want: strong span.Its the easiest way to determine which sleector extracts the data you are intersed in ). We use html_node to find the first noe that matches that selector, extract its contents with html_text(), and convert it to numeric with as.numeric():
+```{r}
+require(magrittr)
+lego_movie %>% 
+  html_node("strong span") %>%
+  html_text() %>% 
+  as.numeric
+```
 
+We use a similar process to extract the cast, using html_nodes() to find all nodes that match the selector: 
 
 ```{r}
+lego_movie %>%
+  html_nodes("#titleCast.itemprop span") %>%
+  html_text()
+```
+
+The titles and authors of recent massage board postings are stored in the third table on the page. We can use html_node() and [[]] to find it, then coerce it to a data frame with html_table():
+```{r}
+lego_movie %>%
+  html_nodes("table") %>%
+  .[[3]] %>%
+html_table()
+```
+
+# Section 12: R Programming
+## Lecture 45: Introduction to programming basics
+## Lecture 46: Logical operators 
+
+```{r}
+x <- 10
+x < 5
+x<20 & x>5
+T & T
+
+# OR logical operator
+(x==10) | (x==100)
+```
+
+```{r}
+df <- mtcars
+df[df$mpg>20,]
+df[(df$mpg>20) | (df$hp>100),]
+df[(df$mpg>20) & (df$hp>100),]
+```
+
+## Lecture 47: If, else, and else if statemnts 
+
+The structure of if statement is: 
+
+if (Condition){
+XXX (Code)
+} else (condition){
+xxx (Code)
+}
+
+Indentation is a key for Python. 
+```{r}
+# example 1
+x <- 13
+if (x==10){
+  # code
+  print("X is equal to 10!")
+  } else if (x==12) {
+  print("X equal to 12")
+  }else{
+      print("X was not equal to 10 or 12")
+  }
+
+# example 2
+hot <- FALSE
+temp <60
+
+if (temp >80){
+  # execute if condition was TRUE
+  hot <- TRUE
+} else {
+  print("Temp is not greater than 80")
+}
+print(hot)
+
+# example 3
+ham <- 10
+cheese <- 10
+report <- "blank"
+
+if(ham >= 10 & cheese >=10){
+  report <- "Strong sales of both ham and cheese"
+} else if (ham==0 & cheese==0){
+  report <- "No sales today"
+} else {
+  report <- "we sold something today!"
+}
+print(report)
 
 ```
 
+## Lecture 48: Conditional Statement Exercises
+
+Ex 1.  write a script that will print "Even Number" if the variable is an even number otherwise print "Not Even"
+```{r}
+x <- 3
+
+if (x %% 2 ==0){
+  "Even Number!"
+} else {
+  "Not Even"
+}
+```
+
+Ex 2. Write a script that will print "Is a Matrix" if the variable x is a matrix, otherwise print "Not a Matrix".
+```{r}
+x <- matrix()
+
+if (is.matrix(x)==T){
+  "Is a Matrix!"
+} else {
+  "Not a Matrix"
+}
+```
+
+Ex 3. Create a script that given a numeric vector x with a length 3, will print out the elements in order from high to low. You must use, if, else if and else statements for logic (This code will be relatively long)
+```{r}
+x <- c(3,7,1)
+
+if (x[1]>x[2]) {
+  # first and second place
+  fir <- x[1]
+  sec <- x[2]
+} else{
+  fir <- x[2]
+  sec <- x[1]
+}
+
+if (x[3] > fir & x[3] >sec){
+  third <- sec
+  sec <- fir
+  fir <- x[3]
+} else if (x[3] < fir & x[3] <sec){
+  thi <- x[3]
+} else {
+  third <- sec
+  sec <- x[3]
+}
+
+print(paste(fir,sec,thi))
+```
 
 
+Ex 4: Write a script that uses if,else if, and else statements to print the max element in a numeric vector with 3 elements.
+```{r}
+x <- c(20,10,1)
+if (x[1]>x[2] & x[1]>x[3]){
+  print(x[1])
+} else if (x[2]>x[3]){
+  print (x[2])
+}else {
+  print(x[3])
+} 
+```
+
+## Lecture 50: While Loops 
+while (condition){
+code executed here 
+while condition is true
+}
+```{r}
+x <- 0
+while(x<10){
+  print(paste0("x is:",x))
+  x <- x+1
+  if(x==10){
+    print("x is now equal to 10! Break Loop!")
+    break
+    print("Woo I printed too!")
+  }
+}
+```
+
+## Lecture 51: For loops
+For loop structure
+for (variable in vector){}
+
+```{r}
+v <- c(1,2,3,4,5)
+
+for (temp.var in v){
+  # execute some code
+  # for every temp.var in v
+  print("Hello")
+  #print(temp.var)
+}
+
+for (temp.var in v){
+  result <- temp.var+1
+  print("The temp.var plus 1 is equal to:")
+  print(result)
+}
+
+# list operation
+my.list <- list(c(1,2,3),mtcars,12)
+for (item in my.list){
+  print(item)
+}
+
+# matrix operation
+mat <- matrix(1:25, nrow=5)
+print(mat)
+
+for (num in mat){
+  print(num)
+}  
+
+for (row in 1:nrow(mat)){
+  for (col in 1:ncol(mat)){
+    print(paste("The selected row is ]",row))
+    print(paste("The element at row:",row,"and col:",col,"is",mat[row,col]))  
+    }
+}
+```
+
+## Lecture 52: Functions
+
+```{r}
+# Basic sntax of function
+name_of_func <- function(inputs1,inputs2,inputs3=45){
+  # code execute
+  return(result)
+}
+
+hello <- function(name){
+  print(paste("Hello",name))
+}
+hello("Sammy")
+hello()
+
+add_num <- function(num1, num2){
+  print(num1+num2)
+}
+add_num(4,5)
+
+result <- add_num(4,5)
+print(result)
+
+# function "times5"
+times5 <- function(num){
+  my.result <- num*5
+  return(my.result)
+  #return(num*5)
+}
+times5(5)
+
+# function "fun"
+v <- "I'm a global variable"
+stuff <- "I'm global stuff"
+
+fun <- function(stuff){
+  print(v)
+  stuff <- "Reassign stuff inside of this function fun"
+  print(stuff)
+}
+fun(stuff)
 
 
+```
 
+## Lecture 53: Functions Training Exercise

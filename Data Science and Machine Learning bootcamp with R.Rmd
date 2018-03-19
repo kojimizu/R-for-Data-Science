@@ -786,3 +786,93 @@ fun(stuff)
 ```
 
 ## Lecture 53: Functions Training Exercise
+
+Ex. 1: Create a function that will return the product of two integers.
+```{r}
+
+prod <- function(num1, num2){
+  return(num1*num2)
+}
+print(prod(3,4))
+```
+
+Ex.2: Create a function that accepts two arguments, an integer and a vector of integers. It return TRUE if the integer is present in the vector, otherwise it returns FALSE. Make sure we pay careful attention to our placement of the return(FALSE) line in the function. 
+```{r}
+num_check <- function (num,v){
+  for (ele in v){
+    if(ele==num){
+      return(TRUE)
+    } 
+  }
+  return(FALSE)
+}
+num_check(0,c(1,2,3))
+```
+
+Ex.3 Create a function that accepts two arguments, an integer and a vector of integers. It returns the count of the number of occurences of the integer in the input vector.
+```{r}
+num_count <- function(num,v){
+  count <- 0
+  for (ele in v){
+    if (ele ==num){
+      count <- count+1
+    }
+  }
+  return(count)
+}
+
+print(num_count(2,c(1,0,2,2)))
+```
+
+Ex.4 We want to ship bars of alminium. We will create a function that accepts and integer representing the requested kilograms of alminium for the package to be shipped. To fulfill these orders, we have small bars (1 kilogram each). To fullfill these orders, we have small bars (1 kilo each), and big bars (5 kilo each). Return the least number of bar needed. Return FALSE if the required load cannot be created with te bars. 
+
+For example, a load of 6 kg requires a minimum of two bars (1.5 kg bar and 1kg bar). A load of 17 kg requires a minimum of 5 bars (3.5 kg bars and 2.1 kg bars). 
+
+```{r}
+bar_count <- function(pack){
+  #PAck is the lg load to fill up
+  amount.of.ones <- pack %% 5
+  amount.of.fives <- (packs - amount.of.ones)/5
+  return(amount.of.ones+amount.of.fives)
+}
+print(bar_count(17))
+```
+
+Ex.5 Create a function that accepts three integer values and returns their sum. However, if an integer value is evenly divisible by 3, then it does not count towards the sum. Return zero if all numbers are evenly divisible by 3. 
+Hint: You may want to use the appendix() function.
+```{r}
+summer <- function(a,b,c){
+  out <- c(0)
+  if(a%%3 !=0){
+    out <- append(a,out)
+  }
+  if(b%%3 !=0){
+    out <- append(b,out)
+  }
+  if(c%%3 !=0){
+    out <- append(c,out)
+  }
+  return(sum(out))
+}
+print(summer(1,6,1))
+```
+
+Ex.6 Create a function that will return TRUE if an input integer is prime. Otherwise, return FALSE.
+
+```{r}
+prime_check <- function(num){
+  if(num==2){
+    return(TRUE)
+  }
+  for (x in 2:(num-1)){
+    if(num%%x==0){
+      return(FALSE)
+    }
+  }
+return(TRUE)
+}
+```
+
+# Section 13: Advanced R Programming 
+## Lecture 56: Built-in R Features
+

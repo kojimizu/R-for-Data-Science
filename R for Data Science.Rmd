@@ -1,0 +1,35 @@
+
+
+# Chapter1: Data Visualization with gglopt2
+## First steps
+```{r}
+library(tidyverse)
+
+head(mpg)
+dim(mpg)
+#mpg - #drv: front-wheel drive, r:rear wheel drive, 4: 4wd
+
+ggplot(data=mpg)+
+  geom_point(mapping=aes(x=displ,y=hwy))
+
+ggplot(data=mpg)+
+  geom_point(mapping=aes(x=hwy,y=cyl))
+plot(mpg$hwy,mpg$cyl)
+
+# geom_point
+ggplot(data=mpg)+
+  geom_point(mapping=aes(x=class,y=drv))
+```
+
+## Aesthetic mappings 
+
+We can add a third variable, like class, to a two-dimensioal scatterplot by mapping it to an aesthetic.
+```{r}
+# color
+ggplot(data=mpg)+
+  geom_point(mapping=aes(x=displ,y=hwy,color=class))
+
+# 
+
+```
+

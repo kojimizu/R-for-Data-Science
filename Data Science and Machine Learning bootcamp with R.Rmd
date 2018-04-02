@@ -1672,11 +1672,6 @@ ggplot(lost_players,aes(yearID,salary))+geom_point()+facet_grid(playerID~.)
 head(lost_players)
 
 # test value calculation
-rowsum()
-colSums(lost_players,)
-?colMeans
-colSums(lost_players$AB)
-colMeans(lost_players$OBP)
 
 x <- cbind(x1 = rep(3,8), x2 = c(4:1, 2:5))
 x
@@ -1715,6 +1710,84 @@ possible
 possible <- head(arrange(avail.player,desc(OBP)),10) %>% select("playerID","OBP","AB","salary")
 possible
 ```
+
+# Section 19: Machine Learning
+## Lecture 88:Introduction to Machine Learning with R 
+
+ISLR is recommended.
+http://www-bcf.usc.edu/~gareth/ISL/ISLR%20Sixth%20Printing.pdf
+
+Machine learning is a method of data analysis that automates analytical model building. Using algorithms that iteratively learn from data, machine learning allow computers to find hiddent insights without being explicitly programmed where to look. 
+
+- fraud detection
+- web search results
+- real-time ads on web pages
+- credit scoring and next-best offers
+- prediction of equipment failures
+- new pricing models
+- network intrusion detection |
+- recommendation engines
+- customer segmentation
+- text sentiment analysis
+- predicting customer churn
+- pattern and image recognition
+- email spam filtering
+- financial modeling 
+
+General machine learning process is 
+1. data acquision
+2. data cleaning 
+3. model training & building
+4. model testing 
+5. model deployment
+
+
+### Supervised learning
+Supervised learning are trained using labeled examples, such as input where the desired output is known.The learning lagorithm receives a set of inputs along with the corresponding correct outputs, and the algorith learns by comparing its actual output with correct outputs to find errors. It then modifies the model acordingly.
+- classification
+- regression
+- prediction
+- gradient boosting
+
+Supervised learning is commonly used in application where historical data predicts likely future events. 
+
+### Unsupervised learning
+Unsupervised learning is used against data that has no historical labels. The system is not told the "right answer". The algorithm must figure out what is bening shown. The goal is to explore the data and find some structure within.
+
+Unsupervised learning can find the main attributes that separate customer segments from each other. Popular techniques include self-organizing maps, nearest-neighbor mapping, k-means clustering and singular value decomposition.
+
+### Reinforcement learning
+Reinforcement learning is often used fro robotics, gaming and navigation. With reinforcement learning, te algorithm discovers through trial and error which actions yield the greatest rewards.
+
+# Section 20: Linear Regression 
+## Lecture 88: History, Background and overview 
+
+The linear model formula takes the form (y~x). To add more predictor variables, just use + sign i.e., (y~x+y). 
+
+Example 
+- model structure
+model <- lm (log(PINCP,base=10) ~ AGEP + SEX + COW + SCHL, data=dtrain)
+- predict 
+dtest$predLogPINCP <- predict(model, newdata=dtest)
+dtrain$predLogPINCP <- predict(model, newdata=dtrain)
+
+## LEcture 89: Linear regression with R(part1)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

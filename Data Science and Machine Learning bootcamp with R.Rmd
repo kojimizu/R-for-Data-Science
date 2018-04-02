@@ -1662,7 +1662,7 @@ As previously mentioned, the OAkland A's lost 3 key players during the off-seaso
 
 Use the subset() function to get a data frame called lost_players from those 3 players. Hint: Try to figure out hwo to use %in% to avoid a bunch of or statements.
 
-```{r}
+```{r lost player data subset}
 library(magrittr)
 lost_players <- combo %>% subset(playerID %in% c("gianbja01","damonjo01","saenzol01")) 
 lost_players
@@ -1686,7 +1686,7 @@ Now we have all the information we need. Here is the final task - Find replaceme
 
 Use the combo dataframe you previously created as the source of information! Remember to just use the 2001 subset of that dataframe. There's lost of different ways you can do this, so be creative! It should be relatively simple to find 3 players that satisfy the requirements, note that there are many correct combinations available!
 
-```{r}
+```{r filter/data visualization}
 # First only grab available players from year 2001
 avail.player <- filter(combo,yearID == 2001)
 
@@ -1699,7 +1699,7 @@ ggplot(avail.player,aes(x=OBP,y=salary))+geom_point()
 - Nowe lets sort by OBP and see what we've got.
 
 Let's grab columns intersted.
-```{r}
+```{r key column analysis}
 avail.player %>% filter(salary<8000000, OBP>0) %>%
   filter(AB>=500)
 
@@ -1771,15 +1771,108 @@ model <- lm (log(PINCP,base=10) ~ AGEP + SEX + COW + SCHL, data=dtrain)
 dtest$predLogPINCP <- predict(model, newdata=dtest)
 dtrain$predLogPINCP <- predict(model, newdata=dtrain)
 
-## LEcture 89: Linear regression with R(part1)
+## Lecture 89: Linear regression with R(part1)
 
+Get the data from: 
+http://archive.ics.uci.edu/ml/datasets/Student+Performance
 
+```{r csv data load}
+# student math data
+df <- read.csv("student-mat.csv",sep=";")
+class(df)
+names(df)
+summary(df)
 
+# no na data is stored in the data frame
+any(is.na(df))
+str(df)
+```
 
+We plot data using ggplot2
+```{r data visualization}
+library(ggplot2)
+library(ggthemes)
+library(dplyr)
 
+# data correlation detection
+# num only (numerical columns only)
+num.cols <- sapply(df,is.numeric)
+# filter 
+cor.data <- cor(df[,num.cols]) %>% print()
 
+# data visualize of correlation
 
+# package: corrgram, 
+install.packages('corrgram')
+install.packages('corrplot')
 
+library(corrgram)
+library(corrplot)
+
+# corrplot - quickly visualize correlation
+corrplot(cor.data, method='color')
+
+# corrgram - pass into the data frame directly
+corrgram(df)
+help("corrgram")
+
+# ggplot visualize
+ggplot(df, aes(x=G3))+geom_histogram(bins = 20, alpha=0.5, fill='blue')
+```
+
+## Lecture 90: Linear regression with R(part2)
+Split data into train and test set
+- we use install.packages('caTools)
+```{r}
+# caTools for data split
+
+Math <- read.csv("student-mat.csv",sep=";")
+
+install.packages('caTools')
+library(caTools)
+
+# set a seed
+set.seed(101)
+```
+ 
+Approach (1): caTools package
+```{r}
+library(caTools)
+sample <- sample.split(Math$G3,SplitRatio=0.7)
+train <- subset(df,sample==TRUE)
+test <- subset(Math,sample=FALSE)
+```
+
+Approach (2): simple version using sample
+```{r}
+# alternative - split of training/test set based on ISLR
+train_set <- sample(395,197)
+names(Math)
+train_set
+
+# linear model fit - all variables
+lm.fit <- lm(G3~.,data=Math, subset=train_set)
+lm.fit <- lm(G3~., data=train)
+
+print(summary(lm.fit))
+
+# coefficient plot
+library(coefplot)
+coefplot(lm.fit)
+
+# residual value extract
+res <- residuals(lm.fit)
+class(res)
+res <- as.data.frame(res)
+head(res)
+
+# plot residual
+plot(lm.fit$residuals)
+ggplot(res,aes(x=res))+geom_histogram(fill="light blue")
+
+```
+
+## Lecture 91: Linear regression with R (Part3)
 
 
 

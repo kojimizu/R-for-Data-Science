@@ -1,7 +1,7 @@
 ---
 output:
-  word_document: default
   html_document: default
+  word_document: default
 ---
 
 # Section 19: Machine Learning
@@ -452,7 +452,7 @@ Simply by bar chart, we can see the data distribution.
 - most passengers are 20s and 30s (children on board)
 
 ```{r data distribution}
-
+library(ggplot2)
 # Pclass distribution
 ggplot(titanic.train,aes(x=Pclass))+geom_bar(aes(fill=factor(Pclass)))
 # Sex distribution
@@ -1536,7 +1536,7 @@ table(pred.values,loans_test[,14])
 table(pred.values,loans_test$not.fully.paid)
 ```
 
-Tuning the model
+### Tuning the model
 We probably got some bad results. With the model classifying everything into one group. Lets tune the model to fix this issue.
 
 We use the tune() function to test the different cost and gamma values. In the lecture, we showed how to do this by using train.x and train.y, but its usually simpler to just pass a formula. Try checking out help(tune) for mode details. This is the end of the project because tuning can take a long time (since its running a bunch of different models). 
@@ -1589,6 +1589,7 @@ pl
 We conduct K means clustering for iris dataset. 
 ```{r iris - K Means Clustering}
 set.seed(101)
+
 irisCluster <- kmeans(iris[,1:4],3,nstart=20)
 irisCluster
 ```
@@ -1603,16 +1604,458 @@ clusplot(iris,irisCluster$cluster,color=T,shade=T,labels=0,
          lines=0)
 ```
 
+# Section 31: K Means Clustering Project
 ## Lecture 118: K Means Clustering Project
 
+Usually when we dealing with an unsupervised learning problem, its difficult to get a good measure of how well the model performed. For this project, we will use data from the UCA archive based off of red and white wines. 
 
+We will then add a label to the combined dataset, and will bring this label back later to see how well we can cluster the wine into groups.
 
+### Get the Data
 
+We first download two csv files from the UCL repository, then read.csv to open both datasets and set them as df1 and df2. Pay attention to what the separate(sep) is.
 
+```{r wine csv data load}
+df1 <- read.csv('winequality-red.csv',sep=";")
+df2 <- read.csv('winequality-white.csv',sep=";")
 
+str(df1)
+str(df2)
+```
 
+Now, we add a label column to both df1 and df2 indicating a label "red" or "white".
+```{r wine data label}
+# rep() function
+df1$label <- rep("red",1599)
+df2$label <- rep("while",4898)
 
+# using sapply with anon functions
+df1$label <- sapply(df1$pH,function(x){'red'})
+df2$label <- sapply(df2$pH,function(x){'white'})
 
+head(df1)
+head(df2)
+```
+
+We combine df1 and df2 into a single data frame called wine.
+```{r wine dataset cobine}
+names(df1)
+colnames(df1)==colnames(df2)
+wine <- rbind(df1,df2)
+str(wine)
+```
+
+### EDA
+Let's explore the data a bit and practice our ggplot2 skills.
+
+#### histogram
+We first create a histogram of residual sugar from the wine data. Color by red and white wines.
+```{r wine resdual.sugar histogram}
+library(ggplot2)
+pl <- ggplot(wine,aes(x=residual.sugar))+geom_histogram(aes(fill=label),color='light grey',bins=50)
+pl + scale_fill_manual(values=c('#ae4554','#faf7ea'))+theme_bw()
+```
+
+Next, we create a histogram of citric.acid from the wine data. Colored by red and white wines.
+
+```{r wine citric.acid histogram}
+pl <- ggplot(wine,aes(x=citric.acid))+geom_histogram(aes(fill=label),colo='light grey',bins=50)
+# optional adding of fill colors
+pl + scale_fill_manual(values=c('#ae4554','#faf7ea'))+theme_bw()
+```
+
+Lastly, we create a histogram of alchol from the wine data, colored by red and white wines.
+```{r}
+library(ggplot2)
+pl <- ggplot(wine,aes(x=alcohol))+geom_histogram(aes(fill=label),color='light grey',bins=50)
+# optional adding of fill color
+pl + scale_fill_manual(values=c('#ae4554','#faf7ea'))+theme_bw()
+```
+
+#### scatterplot
+
+Next, we create a scatterplot of residual.sugar versus citric.acid, color by red and white wine.
+```{r wine scatterplot 1}
+pl <- ggplot(wine,aes(x=citric.acid,y=residual.sugar))+geom_point(aes(color=label),alpha=0.1)
+# optional adding of fill color
+pl+scale_color_manual(values=c('#ae4554','#faf7ea'))+theme_dark()
+```
+
+We also create a scatterplot of volatile.acidity versus residual.sugar, color by rend and white wine.
+```{r wine scatterplot 2}
+pl <- ggplot(wine,aes(x=volatile.acidity,y=residual.sugar))+geom_point(aes(color=label),alpha=1)
+# optional adding of fill colors
+pl + scale_color_manual(values=c('#ae4554','#faf7ea'))+theme_dark()
+```
+
+To apply K means clustering, We grab the data without the label and call it clus.data.
+```{r wine clus.data load}
+library(magrittr)
+str(wine)
+clus.data <- wine[,1:12] %>% head()
+head(clus.data)
+```
+
+### Building the clusters
+We call the kmeans function on clus.data and assing the results to wine.cluster
+```{r wine K-Means Clustering}
+wine.cluster <- kmeans(wine[,1:12],2)
+wine.cluster
+print(wine.cluster$centers)
+```
+
+### Evaluating the Clusters
+```{r}
+table(wine.cluster$cluster,wine$label)
+
+# data visualization
+library(cluster)
+clusplot(wine,wine.cluster$cluster,color=T,shade=T,labels=0,
+         lines=0)
+
+library(Amelia)
+missmap(wine)
+```
+
+We can see that red is easier to cluster together, which makes sense given our previous visualizations. There seems to be a lot of noise with white wines, this could also be due to "Rose" wines being categorized as white wine, while still retaining the qualities of a red wine. Overall this makes sense since wine is essentially just fermented grape juice and the chemical measurements we were provided may not correlate well with whether or not the wine is red or white!
+
+It's important to note here, that K-Means can only give you the clusters, it can't directly tell you what the labels should be, or even how many clusters you should have, we are just lucky to know we expected two types of wine. This is where domain knowledge really comes into play.
+
+# Section 32: Natural Language Processing (NLP)
+
+NLP is useful when
+- we work for Google News and want to group news articles by topic
+- we work for a legal firm and need to shift through thousands of pages of legal documents to find relevant one.  
+
+NLP enables us to 
+- compile documents
+- get features from them
+- compare those features 
+
+<Simple example>
+1. we have two documents, named "blue house", "red house"
+2. Featurize based on word count
+- "Blue House"->(red,blue,house) -> (0,1,1)
+- "Red House" -> (red,blue,house) -> (1,0,1)
+
+A document represented as a vector of word counts is called a "Bag of Words". We can use consine similarity on the vectors made to determine similarity:
+$$
+sim(A,B)=cos(\theta)=AB/||A||||B|| 
+$$
+
+Term frequency - importance of the term within that document
+- TF(d,t)=Number of occurences of term t in document d
+
+Inverse document frequency - importance of the term in the corpus
+- IDF(t)=log(D/t), where 
+* D=total number of documents, t=number of documents with the term
+
+Methematically, TD-IDR is then expressed:
+
+$$
+W_{x,y}=tf_{x,y}*log(/frac{N}{df_x})
+$$
+TD-IDF: Term x within document y
+- tf_x,y: frequency of x in y
+- df_x: number of documents containing x
+- N:total number of documents
+
+## Lecture 121: Natural Language Processing with R(part1)
+```{r twitter NLP package}
+# package download
+install.packages('tm')
+install.packages('twitteR')
+install.packages('wordcloud')
+install.packages('RColorBrewer')
+install.packages('e1017')
+install.packages('class')
+```
+
+## Lecture 121: Natural Language Processing with R(part2)
+
+We first use Twitter library using libraries.
+{r}
+library(twitteR)
+library(tm)
+library(wordcloud)
+library(RColorBrewer)
+
+- connect to twitter 
+setup_twitter_oauth(ckey,skey,token,sectoken)
+
+- search twitter
+AI.tweets <- searchTwitter('AI',n=1000,lang='jp')
+AI.text <- sapply(AI.tweets,function(x) x$getText())
+
+- Clean text data
+AI.text <- iconv(AI.text,'UTF-8','ASCII')
+AI.corpus <- Corpus(VectorSource(AI.text))
+
+- Document Term Matrix
+term.doc.matrix <- TermDocumentMatrix(AI.corpus,control=list(removePunctuation=T, stopwords=c('AI',stopwords('english')),removeNumbers=T,tolower=T))
+
+- Convert object into a matrix
+ter.doc.matrix <- as.matrix(term.doc.matrix)
+
+- Get word counts
+word.freq <- sort(rowSums(term.doc.matrix),decreasing=T)
+dm <- data.frame(word=names(word,freq),freq=word.freq)
+
+- Create the wordcloud
+wordcloud(dm$word,dm$freq,random.order=F,color=brewer.pal(8,'Dark2'))
+
+# Section 33: Neural Nets
+## Lecture 123: Introduction to Neural Nets
+Neural networks are modeled after biological neural networks and attempt to allo computers to learn in a similar manner to humans - reinforcement learning.
+
+- PAttern recognition
+- Time series predictions
+- Signal processing
+- Anomaly detection
+- Control
+
+Neural Networks attempt to solve problems that would normally be easy for humans but hard for computers.
+
+#### Perceptron
+A perceptron consists of one or more imputs, a processor, and a singple output.A perceptron follows the "feed-foward" model, meaning inputs are sent into the neuron, are processed and result in an output. A perceptron process follows 4 main steps:
+1. receive inputs
+2. weight inputs
+3. sum inputs
+4. generate output
+
+To actually train the perceptron, we use the following step:
+1. Provide the perceptron with inputs for which there is known answer
+2. Ask the perceptron to guess an answer
+3. Compute the error (How far from the correct answer)
+4. Adjust all the weights according to the error
+5. Return to Step 1 and repeat
+
+We repeat this until we reach an error we are satisfied.
+
+## Lecture 125: Neural Networks with R
+
+### Data set
+We will use the popular Boston dataset from the MASS package, which describes some features for houses in Boston in 1978. 
+- CRIM - per capita crime rate by town
+- ZN - proportion of residential land zoned for lots over 25,000 sq.ft.
+- INDUS - proportion of non-retail business acres per town.
+- CHAS - Charles River dummy variable (1 if tract bounds river; 0 otherwise)
+- NOX - nitric oxides concentration (parts per 10 million)
+- RM - average number of rooms per dwelling
+- AGE - proportion of owner-occupied units built prior to 1940
+- DIS - weighted distances to five Boston employment centres
+- RAD - index of accessibility to radial highways
+- TAX - full-value property-tax rate per 10,000 dollars
+- PTRATIO - pupil-teacher ratio by town
+- B - 1000(Bk - 0.63)^2 where Bk is the proportion of blacks by town
+- LSTAT - % lower status of the population
+- MEDV - Median value of owner-occupied homes in $1000's
+
+```{r Boston NN}
+# Neural Networks
+library(MASS)
+head(Boston)
+```
+
+```{r NN data overview}
+# dataset overview
+str(Boston)
+# NA value
+any(is.na(Boston))
+```
+
+By using neural net, We will be trying to predict the Median Value MEDV.
+
+We must normalize the data set to apply neural networks model.
+```{r NN data normalization}
+# Maximum sets
+maxs <- apply(Boston,2,max)
+maxs
+
+# Minimum sets
+mins <- apply(Boston,2,min)
+mins
+```
+
+### Dataset normalization
+```{r NN scale normalization}
+help("scale")
+scaled.data <- scale(Boston,center=mins,scale=maxs-mins)
+scaled <- as.data.frame(scaled.data)
+head(scaled)
+# first: center argument (column has corresponding values from center)
+# scale: each value is divided by the scale
+```
+
+### Train, Test Split
+```{r NN Boston test/split}
+library(caTools)
+split <- sample.split(scaled$medv,SplitRatio=0.7)
+train <- subset(scaled,split==T)
+test <- subset(scaled,split==F)
+```
+
+### Neural Net Model
+We apply neural net to Boston dataset to estimate medv.
+
+```{r Boston Neural Net application}
+
+# install.packages("neuralnet")
+library(neuralnet)
+
+(n <- names(train))
+
+f <- as.formula(paste("medv~",paste(n[!n %in% "medv"],collapse="+")))
+f
+
+nn <- neuralnet(f,data=train,hidden = c(5,3),linear.output=TRUE)
+```
+
+### Neural Net Visualization
+We can plot out the model to see a very neat visualization with the weights on each connection.
+
+The black lines show the connections between each layer and the weights on each connection while the blue lines show the bias term added in each step. The bias can be thought as the intercept of a linear model. The net is essentially a black box so we cannot say that much about the fitting, the weights and the model. Suffice to say that the training algorithm has converged and therefore the model is ready to be used.
+```{r Boston - Neural Net Visualization}
+plot(nn)
+```
+
+### Predictions using the Model
+Now we can try to predict the values for the test set and calculate the MSE. Remember that the net will output a normalized prediction, so we need to scale it back in order to make a meaningful comparison (or just a simple prediction).
+```{r Neural Net Prediction}
+# compute predictions
+predicted.nn.values <- compute(nn,test[1:13])
+# list returned
+str(predicted.nn.values)
+```
+
+```{r}
+# Convert back to no-scaled predictions
+true.predictions <- predicted.nn.values$net.result*(max(data$medv)-min(data$medv))+min(data$medv)
+# Convert the test data
+test.r <- (test$medv)*(max(data$medv)-min(data$medv))+min(data$medv)
+# Check the mean squaired error
+MSE.nn <- sum((test.r - true.predictions)^2)/nrow(test)
+MSE.nn
+```
+
+### Visualize Error
+```{r}
+error.df <- data.frame(test.r,true.predictions)
+head(error.df)
+```
+
+```{r}
+library(ggplot2)
+ggplot(error.df,aes(x0test.r,y=true.predictions))+geom_point()+stat_smooth()
+```
+
+Looks like a few houses threw off our model, but overall its not looking too bad considering we're pretty much treating it like a total black box.
+
+### Conclusion
+Neural networks resemble black boxes a lot: explaining their outcome is much more difficult than explaining the outcome of simpler model such as a linear model. Therefore, depending on the kind of application you need, you might want to take into account this factor too. Furthermore, as you have seen above, extra care is needed to fit a neural network and small changes can lead to different results.
+
+# Sectrion 34: Neural Nets Projects
+## Lecture 125: Introduction
+
+Let's wrap up this course by taking a a quick look at the effectiveness of Neural Nets!
+
+We'll use the Bank Authentication Data Set from the UCI repository.
+
+The data consists of 5 columns:
+- variance of Wavelet Transformed image (continuous)
+- skewness of Wavelet Transformed image (continuous)
+- curtosis of Wavelet Transformed image (continuous)
+- entropy of image (continuous)
+- class (integer)
+
+Where class indicates whether or not a Bank Note was authentic.
+
+### Get the data
+Use read.csv to read the bank_note_data.csv file.
+```{r bank note - neural net}
+df <- read.csv('bank_note_data.csv')
+```
+
+Check the head of the data frame and its structure.
+```{r bank note - structure}
+head(df)
+str(df)
+```
+
+### EDA
+Create whatever visualizations we are insterested in. We'll skip this step for the solutions notebook/video because the data isn't easily interpretable since its just statistical info on images.
+
+### Train test split
+Use the caTools library to split the data into training and test sets.
+```{r bank note - test/train split}
+library(caTools)
+set.seed(101)
+split=sample.split(df$Class,SplitRatio=.7)
+train = subset(df,split==TRUE)
+test=subset(df,split==FALSE)
+```
+
+Check the stucture of the train data and note class is still an int data type. We won't conver it to a factor for now, because neural net requires all numeric information.
+```{r train data class}
+str(train)
+```
+
+### Building the Neural Net
+Call the neuralnet library to split the data into training and testing sets.
+```{r bank note - neural net library}
+library(neuralnet)
+```
+
+Use the neural net function to train a neural net, set linear.output = FALSE and choose 10 hidden neurons (hidden=10).
+```{r bank note - neural net}
+nn <- neuralnet(Class~Image.Var+Image.Skew+Image.Curt+Entropy,data=train,hidden=10,linear.output=FALSE)
+```
+
+### Predictions 
+We use compute() to grab predictions using the nn model on the test set. 
+```{r bank note neural net prediction}
+predicted.nn.values <- compute(nn,test[,1:4])
+head(predicted.nn.values$net.result)
+```
+
+Apply the round function to the predicted values so we see only 0s and 1s as your predicted classes.
+```{r bank note prediction round}
+predictions <- sapply(predicted.nn.values$net.result,round)
+head(predictions)
+```
+
+Let's use table() to create a confusion matrix of the predictions versus the real data.
+```{r bank note - comparison}
+table(predictions,test$Class)
+```
+
+You should have noticed that you did very well! Almost suspiciously well! Let's check our results against a randomForest model!
+
+### Comparing Models (Random Forest)
+Run the code to set the class column of the data as a factor (randomForest needs it to be a factor, not an int like neural nets did. Then re-do the train/test split).
+```{r bank note random forest}
+df$Class <- as.factor(df$Class)
+library(caTools)
+set.seed(101)
+split=sample.split(df$Class,SplitRatio=0.70)
+train=subset(df,split==TRUE)
+test=subset(df,split==FALSE)
+str(train)
+```
+
+Then we create an randomForest model with the new adjusted training data, and use predict() to get the predicted values from the rd model.
+```{r bank note- randomForest}
+library(randomForest)
+rf_model <- randomForest(Class~Image.Var+Image.Skew+Image.Curt+Entropy, data=train)
+```
+
+Use predict() to get the predicted values from the rf model.
+```{r bank note - randomForest predict}
+rf.pred <- predict(rf_model,test)
+table(rf.pred,test$Class)
+```
+
+END
 
 
 

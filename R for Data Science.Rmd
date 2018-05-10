@@ -1,11 +1,5 @@
----
-output:
-  html_document: default
-  pdf_document: default
-  word_document: default
----
 
-
+# R for Data Science
 # Chapter1: Data Visualization with gglopt2
 ## First steps
 
@@ -726,6 +720,7 @@ flights_sml <- select(flights,year:day,
                       ends_with('delay'),
                       distance,
                       air_time)
+head(flights_sml)
 
 # mutate function
 mutate(flights_sml,
@@ -1056,15 +1051,373 @@ batter %>% arrange(desc(ba)) %>% head(20)
 Just using means, counts, and sum can get usa long way, but R provides many other useful summary functions:
 
 #### Measures of location
+median (x)
+```{r}
+# useful summary functions 1 -----
+head(not_cancelled)
+not_cancelled %>% 
+  group_by(year,month,day) %>% 
+  summarize(
+    # average delay:
+    avg_delay1=mean(arr_delay),
+    # average positive delay:
+    avg_delay2=mean(arr_delay[arr_delay>0])
+  )
+```
 
-#### Measures of spead
+#### Measures of spead sd(x), IQR(x), mad(x)
+The mean squared deviations or standard deviations or sd is the standard measure of spread. 
+```{r}
+# useful summary functions 2 -----
+not_cancelled %>% 
+  group_by(dest) %>% 
+  summarize(
+    distance_sd=sd(distance)) %>% 
+  arrange(desc(distance_sd))
+```
 
-#### Measures of rank 
+#### Measures of rank  min(x), quantile(x,0.25),max(x)
+Quantiles are genelization of the median. For example, quantile(x,0.25) will find a value of x that is greater than 25% of the values, and less than the remaining 75%. 
+```{r}
+# useful summary functions 3 -----
+not_cancelled %>% 
+  group_by(year, month,day) %>% 
+  summarize(
+    first=min(dep_time),
+    last=max(dep_time)
+  )
+```
 
+#### Measure of position fitst(x), nth(x,2), last(x)
+These work similarly to x[1],x[2],and x[length(x)], but let us set a default value if that position does not exist. For example, we can find the first and last departure for each day: 
+```{r}
+# useful summary functions 4 -----
+not_cancelled %>% 
+  group_by(year,month,day) %>% 
+  summarize(first_dep=first(dep_time),
+            last_dep=last(dep_time))
+```
 
-## Grouped Mutates (and filters)
+These functions are cmplementary to filtering on ranks.Filtering gives us all variables, with each observations in a separate row:
+```{r}
+# useful summary functions 5 -----
+not_cancelled %>% 
+  group_by(year,month,day) %>% 
+  mutate(r=min_rank(desc(dep_time))) %>% 
+  filter(r %in% range(r)) %>% 
+  head(30)
+```
 
+#### Counts
+We have seen n(), which takes no arguments, and returns the size of the current group. To count the number of non-missing values, use sum(!is.na(x)). To count the number of distance, use n_distinct(x):
+```{r}
+# counts 1 -----
+# which destinations have the most carriers?
+not_cancelled %>% 
+  group_by(dest) %>% 
+  summarize(carriers=n_distinct(carrier)) %>% 
+  arrange(desc(carriers))
+```
 
+Counts are useful that dplyr provides a simple helper if all we want is a count:
+```{r}
+# counts 2 -----
+not_cancelled %>% 
+  count(dest)
+```
+
+We can optionally provide a weight variable. For example we could use this to "count(sum)" the total number of miles a plane floew:
+```{r}
+# counts 3 -----
+not_cancelled %>% 
+  count(tailnum,wt=distance) %>% 
+  head()
+```
+
+#### counts and proportions of logical values 
+sum(x>10), mean(y==0)
+When used with numeric functions, TRUEs is convered to 1 and FALSe to 0. This makes sum() and mean() very useful: sum(x) gives the number of TRUEs in x, and mean(x) gives the propotion:
+```{r}
+# counts and porportions 1 -----
+# How many flights left before 5am? (These usually indicate delayed flights from the previous day)
+not_cancelled %>% 
+  group_by(year,month,day) %>% 
+  summarize(n_early=sum(dep_time<500)) %>% 
+  head()
+
+# What proportion of flights are delayed by more than an hour?
+not_cancelled %>% 
+  group_by(year,month,day) %>% 
+  summarize(hour_perc=mean(arr_delay>60))
+```
+
+### Grouping by Multiple Variables
+When we group by multiple variables, each summary peels off one level of the grouping. That makes it easy to progressively roll up a dataset: 
+```{r}
+# Grouping with variables -----
+daily <- flights %>% group_by(year,month,day)
+head(per_day <- summarize(daily,flights=n()))
+# number of flights per month
+(per_month <- summarize(per_day,flights=sum(flights)))
+# number of flights per year
+(per_year <- summarize(per_month,flights=sum(flights)))
+```
+
+Be careful when progressively rolling up summaries: its OK for sums and counts, but we need to think about weighting means and variances, and its not possible to do it exactly for rank-based statistics like the median. In other words, the sum of groupwise sum is the overvall sum, but the median groupwise medians is not the overvall median. 
+
+### Ungrouping
+If we need to remove grouping, and return to operations on ungrouped data, use ungroup():
+```{r}
+# ungrouping -----
+daily %>% 
+  ungroup() %>% 
+  # no longer grouped by date
+  summarize(flights=n())
+  # all flights
+```
+
+### Exercise
+1. Brainstorm at least five different ways to assess the typical delay characteristics of a group of flights. Consider the following scenarios:
+- A flights is 15 minutes early 50% of the time, and 15 minutes last 50% of the time
+- A flight is always 10 minutes late
+- A flights is 30 minutes early 50% of the time and 30 minutes late 50% of the time
+- 99% of the time a flight is on time. 1% of the time its 2 hours late. Which is more improtant arrival delay or departure delay?
+```{r}
+# Exercise 1 -----
+library(nycflights13)
+head(flights)
+df <- flights %>% filter(flight==1) 
+df$arr_delay
+mean(df$arr_delay,na.rm = T)
+
+library(purrr)
+
+# delay char
+delay_char <- flights %>% 
+  group_by(flight) %>% 
+  summarize(n=n(),
+            fifteen_early=mean(arr_delay==-15,na.rm=T),
+            fifteen_late=mean(arr_delay==15,nar.rm=T),
+            ten_always=mean(arr_delay==10,nar.rm=T),
+            thirty_early=mean(arr_delay==-30,nar.rm=T),
+            thirty_late=mean(arr_delay==30,nar.rm=T),
+            percentage_on_time=mean(arr_delay==0,na.rm=T),
+            twohours=mean(arr_delay>120,nar.rm=T)) %>% 
+  map_if(is.double,round,2) %>% 
+  as_tibble()
+head(delay_char)
+```
+
+```{r}
+# A flight is 15 minutes early 50% of the time, and 15 minutes late 50% of the time.
+delay_char %>% filter(fifteen_early==0.5,fifteen_late==0.5)
+
+# A flight is always 10 minutes late.
+delay_char %>%  filter(ten_always==1)
+
+# A flight is 30 minutes early 50% of the time, and 30 minutes late 50% of the time.
+delay_char %>% filter(thirty_early==0.5,thirty_late==0.5)
+
+# 99% of the time a flight is on time. 1% of the time it’s 2 hours late.
+delay_char %>% 
+  filter(percentage_on_time==0.99 & twohours ==0.01)
+```
+
+2. Come up with another approach that will give us the sample output as
+```{r}
+# Exercise 2 -----
+# Come up with another approach that will give you the same output as:
+library(Amelia)
+missmap(flights)
+
+# dateset refine
+not_cancelled <- flights %>% 
+  filter(!is.na(de_delay),!is.na(arr_delay))
+
+not_cancelled %>% count(dest)
+not_cancelled %>% count(tailnum,wt=distance)
+
+#########
+
+not_cancelled %>% 
+  group_by(dest) %>% 
+  summarize(n=n())
+
+not_cancelled %>% 
+  group_by(tailnum) %>% 
+  tally(wt=distance)
+
+not_cancelled %>% 
+  group_by(tailnum) %>% 
+  summarize(n=sum(distance))
+```
+
+3. Our definition of cancelled flights `(is.na(dep_delay) | is.na(arr_delay) )` is slightly suboptimal. Why? Which is the most important column?
+
+Because if a flight didn't leave then it was cancelled. If the condition is.na(dep_delay) is met, then the flight was cancelled.
+
+4. Look at the number of cancelled flights per day. Is there a pattern? Is the proportion of cancelled flights related to the average delay?
+
+- It looks like there is a positive relationship. The higher the average delay of the day, the higher the proportion of cancelled flights per day.
+
+```{r}
+# Exercise 4 -----
+flights %>% 
+  group_by(day) %>% 
+  summarise(cancelled=mean(is.na(dep_delay)),
+            mean_dep=mean(dep_delay,na.rm=T),
+            mean_arr=mean(arr_delay,na.rm=T)) %>% 
+  ggplot(aes(y=cancelled))+
+  geom_point(aes(x=mean_dep),colour="red")+
+  # geom_smooth(aes(x=mean_dep),colour="red")+
+  geom_point(aes(x=mean_arr),colour="blue")+
+  xlab("Avg delay per day")+ylab("Cancelled flights per day")
+```
+
+5. Which carrier has the worst delay? 
+Challenge: can you disentangle the effects of bad airports vs. bad carriers? Why/why not? (Hint: think about flights %>% group_by(carrier, dest) %>% summarise(n()))
+```{r}
+# Exercise 5 -----
+flights %>% 
+  group_by(carrier) %>% 
+  summarise(dep_max=max(dep_delay,na.rm=T),
+            delay_max=max(arr_delay,na.rm=T)) %>% 
+  arrange(desc(dep_max,arr_max)) %>% 
+  filter(1:n()==1)
+```
+
+6. For each plane, count the number of flights before the first delay of greater than 1 hour.
+```{r}
+# Exervise 6 -----
+library(nycflights13)
+flights %>% 
+  mutate(dep_time=time_hour) %>% 
+  group_by(tailnum) %>% 
+  arrange(dep_time) %>% 
+  mutate(cumulative = !cumany(arr_delay>60)) %>% 
+  filter(cumulative==T)  %>% 
+  tally(sort=TRUE) %>% 
+  head()
+```
+
+7. What does the sort argument to count() do? When might we use it?
+When we want to sort the cases based on the count
+```{r}
+# Exervise 7 -----
+flights %>%
+  count(flight, sort = T)
+```
+
+## Grouped Mutates (and Filter)
+Grouping is most useful in conjunction with summarise(), buy we can also do convenience operations with mutate() and filter():
+- Find the worst number of each group:
+```{r}
+# Grouped Mutate 1 -----
+head(flights_sml)
+flights_sml %>% 
+  group_by(year,month,day) %>% 
+  filter(rank(desc(arr_delay))<10) %>% 
+  head()
+```
+
+- Find all groups bigger than a threshold:
+```{r}
+# Grouped Mutate 2 -----
+popular_dests <- flights %>%
+  group_by(dest) %>% 
+  filter(n()>365)
+head(popular_dests)
+```
+
+- Standardize to compute per group metrics:
+```{r}
+# Grouped Mutate 3 -----
+library(tidyverse)
+popular_dests %>% 
+  filter(arr_delay>0) %>% 
+  mutate(prop_delay=
+           arr_delay/sum(arr_delay)) %>% 
+  select(year:day,dest,arr_delay,prop_delay) %>% 
+  head()
+```
+
+### Grouped Mutates - Exercises 
+1. Refer back to the table of useful mutate and filtering functions. Describe how each operation changes when we combine it with grouping.
+
+2. Which plane(tailnum) has the worst on-time record?
+The flights listed are always late.
+```{r Grouped Mutates - Exercises 1}
+head(flights)
+
+flights %>% 
+  filter(!is.na(arr_delay)) %>% 
+  group_by(tailnum) %>% 
+  summarise(prop_time=sum(arr_delay<=30)/n(),
+            mean_arr=mean(arr_delay,na.rm=T),
+            fl=n()) %>% 
+  arrange(desc(prop_time))
+```
+
+3. Wyat time of day should we fly if we want to avoid delays as much as possible?
+```{r Grouped Mutates - Exercises 2}
+flights %>% 
+  group_by(hour) %>%
+  filter(!is.na(dep_delay)) %>% 
+  summarize(delay=mean(dep_delay>0,na.rm=T)) %>% 
+  ggplot(aes(x=hour,y=delay))+geom_col()
+
+# or
+
+flights %>% 
+  group_by(hour) %>% 
+  summarize(m=mean(dep_delay,na.rm=T),
+            sd=sd(dep_delay,na.rm=T),
+            low_ci=m-2*sd,
+            high_ci=m+2*sd,
+            n=n()) %>% 
+  ggplot(aes(hour,m,ymin=low_ci,ymax=high_ci))+
+  geom_pointrange()
+```
+
+4.For each destination, compute the total minutes of delay. For each, flight, compute the proportion of the total delay for its destination.
+```{r Grouped Mutates - Exercises 3}
+
+# tital minutes of delay
+flights %>% 
+  group_by(dest) %>% 
+  filter(!is.na(dep_delay)) %>% 
+  summarise(tol_mins=sum(dep_delay[dep_delay>0])) %>% 
+  arrange(desc(tol_mins)) %>% 
+  head()
+
+# total delay proportion
+flights %>% 
+  filter(!is.na(dep_delay)) %>% 
+  group_by(tailnum,dest) %>% 
+  summarise(m=mean(dep_delay[dep_delay>0]),
+            n=n()) %>% 
+  arrange(desc(m)) %>% 
+  head()
+```
+
+5.Delays are typically temporally correlated: even once the problem that caused the initial delay has been resolved, later flights are delayed to allow earlier flights to leave. Using lag() explore how the delay of a flight is related to the delay of the immediately preceding flight.
+```{r Grouped Mutates - Exercises 4}
+
+```
+
+6. 
+```{r Grouped Mutates - Exercises 5}
+
+```
+
+7. 
+```{r Grouped Mutates - Exercises 6}
+
+```
+
+# Chapter 4. Workflow scripts 
+
+# Chapter 5. Exploratory Data Analysis 
 
 
 

@@ -1,5 +1,7 @@
 
 # R for Data Science
+http://r4ds.had.co.nz/exploratory-data-analysis.html
+
 # Chapter1: Data Visualization with gglopt2
 ## First steps
 
@@ -1402,24 +1404,278 @@ flights %>%
 
 5.Delays are typically temporally correlated: even once the problem that caused the initial delay has been resolved, later flights are delayed to allow earlier flights to leave. Using lag() explore how the delay of a flight is related to the delay of the immediately preceding flight.
 ```{r Grouped Mutates - Exercises 4}
+flights %>%
+  mutate(new_sched_dep_time = lubridate::make_datetime(year, month, day, hour, minute)) %>%
+  arrange(new_sched_dep_time) %>%
+  mutate(prev_time = lag(dep_delay)) %>%
+  # filter(between(dep_delay, 0, 300), between(prev_time, 0, 300)) %>% # play with this one
+  select(origin, new_sched_dep_time, dep_delay, prev_time) %>%
+  ggplot(aes(dep_delay, prev_time)) + geom_point(alpha = 1/10) +
+  geom_smooth()
 
+# or
+
+flights %>%
+  select(year, month, day, hour, dest, dep_delay) %>%
+  group_by(dest) %>%
+  mutate(lag_delay = lag(dep_delay)) %>%
+  arrange(dest) %>%
+  filter(!is.na(lag_delay)) %>%
+  summarize(cor = cor(dep_delay, lag_delay, use = "complete.obs"),
+            n = n()) %>%
+  arrange(desc(cor)) %>%
+  filter(row_number(desc(cor)) %in% 1:10)
 ```
 
-6. 
+Although there is a lot of noise, you can see a sort of straight line going on there. There is also a correlation between the lagged values in many of the destionatinons. So correlation between flights is mostly in specific airports.
+
+6. Look at each destination. Can you find flights that are suspiciously fast? (i.e. flights that represent a potential data entry error). Compute the air time a flight relative to the shortest flight to that destination. Which flights were most delayed in the air?
 ```{r Grouped Mutates - Exercises 5}
+# solution 1
+flights %>% 
+  group_by(dest) %>% 
+  arrange(air_time) %>% 
+  slice(1:5) %>% 
+  select(tailnum,sched_dep_time,sched_arr_time,air_time) %>% 
+  arrange(air_time) %>% 
+  head()
 
+# solution 2
+flights %>% 
+  group_by(dest) %>% 
+  mutate(shortest=air_time-min(air_time,na.rm=T)) %>% 
+  top_n(1,air_time) %>% 
+  arrange(-air_time) %>% 
+  select(tailnum,sched_dep_time,sched_arr_time,air_time,shortest) %>% 
+  head()
 ```
 
-7. 
+7. Find all destinations that are flown by at least two carriers. Use that information to rank the carriers.
 ```{r Grouped Mutates - Exercises 6}
-
+flights %>% 
+  group_by(dest) %>% 
+  filter(n_distinct(carrier)>=2) %>% 
+  group_by(carrier) %>% 
+  summarise(n=n_distinct(dest)) %>% 
+  arrange(desc(n))
+  # arrange(-n) is the same expression as arrange(desc)
 ```
-
-# Chapter 4. Workflow scripts 
 
 # Chapter 5. Exploratory Data Analysis 
+## Introduction
+This chater will cover how to use visualization and transformation to explorer the data in a systematic way, a task that statisticians call exploratory data analysis (EDA)
 
+1. Generate questions about the data
+2. Search for answers by visualizing, transforming, and modeling the data
+3. Use what we learn to refine the questions and/or generate new questions
 
+## Questions
+EDA is fundamentally a creative process. AND like most creative processes, the key to asking quality questionsis to generate a large quantitiy of questions. It is difficult to ask revealing questions at the start of your analysis because we do not know what insights are contained in the dataset. 
 
+There is no rule about which questions we should ask to guide the research. However, two typesof questions will always be useful for making discoveries within the data. 
 
+1. What type of variation occurs within the variables?
+2. What type of covariation occurs between the variables? 
 
+## Variation
+Variation is the tendency of the values of a variable to change from measurement to measurement. 
+
+## Visualizing distributions
+### Barplot
+Barplot for categorical variables (factors or character vectors)
+```{r visualizing distributions Barplot}
+ggplot(data=diamonds)+
+  geom_bar(aes(x=cut),fill='light gray')
+
+#count heights of tre bars
+diamonds %>% 
+  dplyr::count(cut) %>% 
+  arrange(desc(cut))
+```
+
+A variable is continuous if it can take any of an infinite set of oredred values. Numbers and date-times are two examples of continuous variables. To examine the distribution of a continuous variable, use histogram.
+
+We can set the width of the intervals in a histogram with the binwidth argument. 
+
+```{r visualizing distributions Histgoram}
+ggplot(diamonds)+
+  geom_histogram(mapping=aes(x=carat),binwidth=0.3)
+
+# compute this by ggplot2::cut_width()
+
+diamonds %>% 
+  count(cut_width(carat,0.5))
+
+smaller <- diamonds %>% 
+  filter(carat<3)
+
+ggplot(data=smaller,mapping=aes(x=carat))+
+  geom_histogram(binwidth=0.1)+theme_bw()
+```
+
+If we want to overlay multiple histograms in the same plot, recommended is geom_freqpoly().
+```{r visualizing distributions geom_freqpoly}
+ggplot(data=smaller,aes(x=carat,color=cut))+
+  geom_freqpoly(binwidth=0.1)
+```
+
+### Typical Values 
+Common values and less-common values are useful to come up with useful questions. 
+- Which values are the most common? why?
+- What values are rare? Why? Does that match the expectation?
+- Can we see any unusual patterns? What might explain them?
+
+```{r Typical values}
+ggplot(data=smaller, mapping=aes(x=carat))+
+  geom_histogram(binwidth = 0.01)
+```
+
+In general, clusters of similar values suggest that subgroups exist in the data. To understand the subgroups, ask:
+- How are the observations within each clusters different from each other?
+- How are the observations in separate clusters different from each other?
+- How can we explain or describe the clusters?
+- Why might the apprearance of clusters be misleading?
+
+### Unusual Values
+Outliers are observations that are unusual;
+
+We can zoom in to small values of the y-axis with coord_cartesian().
+```{r unusual values}
+ggplot(diamonds)+
+  geom_histogram(mapping=aes(x=y),binwidth=0.5)
+
+# coord_cartesian()
+ggplot(diamonds)+
+  geom_histogram(aes(x=y),binwidth = 0.5)+
+  coord_cartesian(ylim=c(0.50))
+
+usual <- diamonds %>% 
+  filter(y<3 | y>20) %>% 
+  arrange(y)
+usual
+```
+
+### Exercises
+1. Explore the distribution of each of the x.y and z variables in diamonds. What do you learn? Think abou a diamonds and how we might decide which dimension is the length, width, and depth?
+```{r Visualizing distributions exercise 1-1}
+
+head(diamonds)
+
+library(magrittr)
+library(tidyr) #gather
+library(ggplot2)
+library(dplyr) #mutate
+
+diamonds %>% 
+  gather(key=dist,vals,x,y,z) %>% 
+  mutate(n=n()) %>% 
+  ggplot(aes(x=vals,color=dist))+
+  geom_freqpoly(bins=100)
+
+cor(diamonds$x, diamonds$y)
+```
+
+One thing that is pretty obvious but perhaps hard to grasp at first is that distribution of X and Y are pretty much the same.In fact, the same graph from the above with `bins=30` won't show you the X distribution because it overlaps perfectly. The correlation between the two can be confirmed. 
+
+If we rounded each mm to the closest number, valu-paring x and y yields `mean(with(diamonds,round(x,0)==round(y,0)))` of the values with the same number. So far, the lenfth is directly proportional to the y value. 
+```{rVisualizing distributions exercise 1-2}
+install.packages('GGally')
+diamonds %>% 
+  filter(y<30) %>% 
+  select(x,y,z) %>% 
+  GGally::ggpairs()
+```
+
+Yet the relationship between x and y with z is almost flat, as expected. That is ,after excluding 2 diamonds which had unreasonable values. 
+
+2. Expore the distribution of price. Do you discover anything unusual or surprisng? (Hint: Carefully think about the binwidth and make sure you try a wide range of values)
+```{r Visualizing distributions exercise 2}
+
+## TO DO: Fixe the Y and X axis to be able to specify the cutting point in the distribution ("http://peterhaschke.com/Code/multiplot.R").
+
+library(purrr) #map function
+
+graph <- map(seq(50,1000,100),
+             ~ggplot(diamonds,aes(x=price))+
+               geom_historam(bins=.x)+
+               labs(x=NULL,y=NULL)+
+               scale_x_continuous(labels=NULL)+
+               scale_y_continuous(labels=NULL))
+
+multiplot(plotlist=graph)
+```
+
+3. How many diamonds are 0.99 carat? How many are 1 carat? What do you think is the cause of the difference?
+```{r Visualizing distributions exercise 3}
+library(magrittr) # %>%
+attach(diamonds)
+
+diamonds %>%
+  filter(carat %in% c(0.99, 1)) %>%
+  count(carat)
+```
+
+4. Compare and contrast coord_cartesian() versus xlim() or ylim() when zooming in on a histogram. What happens if wa leave binwdith unset? What happens if you try and zoon so only half a bar shows? 
+```{r Visualizing distributions exercise 4}
+
+library(ggplot2)
+
+# ylim
+diamonds %>% 
+  ggplot(aes(y))+
+  geom_histogram()+
+  coord_cartesian(ylim=c(0,50))
+# note: how xlim deeited the observation at0
+
+# xlim, ylim
+diamonds %>% 
+  ggplot(aes(y))+
+  geom_histogram()+
+  xlim(c(0,60))+
+  coord_cartesian(y=c(0,50))
+
+# also note that how xlim and ylim inside coord_carterisan don't exclude the data 
+diamonds %>% 
+  ggplot(aes(y))+
+  geom_histogram(bins=30)+
+  coord_cartesian(xlim=c(0,60),ylim=c(0,50))
+```
+
+http://r4ds.had.co.nz/exploratory-data-analysis.html
+
+## Missing Values
+If we have encontered unusual values in te dataset, and simply want to move on to the rest of the analysis, we have two options.
+
+1. Drop the entire row with the strange values 
+```{r}
+library(dplyr) # between()
+diamonds2 <- diamonds %>% 
+  filter(between(y,3,20))
+```
+
+This is not recommended, because one measurement is invlaid, doesn't mean all the measurements are. Additionally, if we have low quality data, by time that we have applied this approach to every variable, we might find that we don't have any data left.
+
+2. Instead, it is recommended replacing the unusual values with missing values. The easiest way to do this is to use `mutate()` to replace variable with a modified copy. We can use the `ifelse()` function to replace unusual values with `NA`: 
+```{r}
+library(Amelia)
+missmap(diamonds)
+
+diamonds2 <- diamonds %>% 
+  mutate(y=ifelse(y<3 | y>20, NA,y))
+```
+
+`ifelese()` has three arguments.
+The first argument `test` should be a logical vector. The result will contain the value of the second argument, `yes`, when `test` is `TRUE`, and the value of the third argument, `no`, when it is false. 
+
+Line R, ggplot2 subscribes to the philosophy that missing values should never silently go missing. It's not obvious where we should plot missing values, so ggplot2 doesn't include them in the plot, but it does warn that they haven been removed: 
+```{r}
+ggplot(data=diamonds2,mapping=aes(x=x,y=y))+
+  geom_point()
+```
+
+To suppress that warning, set `n.rm=T`.
+```{r}
+ggplot(diamonds2,aes(x=x,y=y))+geom_point(na.rm=T)
+```
+
+Other time we want to understand what makes obervations with missing values different to observations with recored values. For example, in ``

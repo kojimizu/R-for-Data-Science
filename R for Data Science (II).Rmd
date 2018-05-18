@@ -1,0 +1,211 @@
+
+R for Data Science (II)
+II. Wrangle
+
+# Chapter 9: Introduction  
+We will learn about data wrangling, the art of getting the data into R in a useful form for visualization and modeling. 
+
+The part of the book proceeds as follows:
+
+- In `tibbles`, you’ll learn about the variant of the data frame that we use in this book: the tibble. You’ll learn what makes them different from regular data frames, and how you can construct them “by hand”.
+
+- In `data import`, you’ll learn how to get your data from disk and into R. We’ll focus on plain-text rectangular formats, but will give you pointers to packages that help with other types of data.
+
+- In `tidy data`, you’ll learn about tidy data, a consistent way of storing your data that makes transformation, visualisation, and modelling easier. You’ll learn the underlying principles, and how to get your data into a tidy form.
+
+Data wrangling also encompasses data transformation, which you've already learned a little about. Now we'll focus on new skills for three specific types of data, tou will frequently encounter in practice:
+
+- `Relational data` will give you tools for working with multiple interrelated datasets.
+- `Strings` will introduce regular expressions, a powerful tool for manipulating strings.
+- `Factors` are how R stores categorical data. They are used when a variable has a fixed set of possible values, or when you want to use a non-alphabetical ordering of a string.
+- `Dates and times` will give you the key tools for working with dates and date-times.
+
+# Chapter 10: Tibbles
+## 10.1: Introduction
+Throughout this book we work with “tibbles” instead of R’s traditional `data.frame`. Tibbles are data frames, but they tweak some older behaviours to make life a little easier. R is an old language, and some things that were useful 10 or 20 years ago now get in your way. It’s difficult to change base R without breaking existing code, so most innovation occurs in packages. Here we will describe the tibble package, which provides opinionated data frames that make working in the tidyverse a little easier. In most places, I’ll use the term tibble and data frame interchangeably; when I want to draw particular attention to R’s built-in data frame, I’ll call them `data.frame`s.
+
+If this chapter leaves you wanting to learn more about tibbles, you might enjoy `vignette("tibble")`.
+
+### 10.1.1: Prerequisites
+```{r 10.1.1: Prerequisites}
+library(tidyverse)
+```
+
+## 10.2: Creating tibbles
+Almost all of the functions that we will use in this book produce tibbles, as tibbles are one of the unifying features of the tidyverse. Most other R packages use regular data frames, so you might want to coerce a data frame to a tibble. You can do that with `as_tibble()`:
+```{r 10.2: creating tibbles 1}
+as_tibble(iris)
+```
+
+You can create a new `tibble` from individual vectors with tibble(). tibble() will automatically recycle inputs of length 1, and allows you to refer to variables that you just created, as shown below.
+```{rcreating tibbles 2}
+tibble(
+  x=1:5,
+  y=1,
+  z=x^2+y
+)
+```
+
+If you’re already familiar with `data.frame()`, note that tibble() does much less: it never changes the type of the inputs (e.g. it never converts strings to factors!), it never changes the names of variables, and it never creates row names.
+
+It’s possible for a tibble to have column names that are not valid R variable names, aka non-syntactic names. For example, they might not start with a letter, or they might contain unusual characters like a space. To refer to these variables, you need to surround them with backticks, ```:
+```{r creating tibbles 3}
+tb <- tibble(
+  ':)'="smile",
+  ' '="space",
+  `2000`="number"
+)
+tb
+```
+
+You’ll also need the backticks when working with these variables in other packages, like ggplot2, dplyr, and tidyr.
+
+Another way to create a tibble is with `tribble()`, short for transposed tibble. `tribble()` is customised for data entry in code: column headings are defined by formulas (i.e. they start with `~`), and entries are separated by commas. This makes it possible to lay out small amounts of data in easy to read form.
+```{r creating tibbles 4}
+tribble(
+  ~x, ~y, ~z,
+  #--/--/----
+  "a",2,3.6,
+  "b",1,8.5
+)
+```
+
+I often add a comment (the line starting with #), to make it really clear where the header is.
+
+## 10.3 Tibbles vs. data.frame
+There are two main differences in the usage of a tibble vs. a classic data.frame: printing and subsetting.
+
+### 10.3.1 Printing
+Tibbles have a refined print method that shows only the first 10 rows, and all the columns that fit on screen. This makes it much easier to work with large data. In addition to its name, each column reports its type, a nice feature borrowed from `str()`:
+```{r Tibbles vs. data.frame 1}
+tibble(
+  a=lubridate::now()+runif(1e3)*86400,
+  b=lubridate::today()+runif(1e3)*30,
+  c=1:1e3,
+  d=runif(1e3),
+  e=sample(letters,1e3,replace=TRUE)
+)
+```
+
+Tibbles are designed so that you don’t accidentally overwhelm your console when you print large data frames. But sometimes you need more output than the default display. There are a few options that can help.
+
+First, you can explicitly `print()` the data frame and control the number of rows (`n`) and the `width` of the display. `width = Inf` will display all columns:
+```{r Tibbles vs. data.frame 1}
+nycflights13::flights %>% 
+  print(n=10,width=Inf)
+```
+
+You can also control the default print behaviour by setting options:
+
+- `options(tibble.print_max = n, tibble.print_min = m)`: if more than `m` rows, print only n rows. Use options(dplyr.print_min = Inf) to always show all rows.
+- Use `options(tibble.width = Inf)` to always print all columns, regardless of the width of the screen.
+
+You can see a complete list of options by looking at the package help with `package?tibble`.
+
+A final option is to use RStudio’s built-in data viewer to get a scrollable view of the complete dataset. This is also often useful at the end of a long chain of manipulations.
+```{r Tibbles vs. data.frame 2}
+nycflights13::flights %>% 
+  View()
+```
+
+### 10.3.2 Subsetting
+So far all the tools you’ve learned have worked with complete data frames. If you want to pull out a single variable, you need some new tools, `$` and [[. [[ can extract by name or position; `$` only extracts by name but is a little less typing.
+```{r Tibbles vs. data.frame 3}
+df <- tibble(
+  x=runif(5),
+  y=rnorm(5)) %>% 
+  print(n=3)
+
+df$x
+df[["x"]]
+df[[1]]
+```
+
+To use these in a pipe, you’ll need to use the special placeholder `.`:
+```{r Tibbles vs. data.frame 4}
+df %>% .$x
+df %>% .[["x"]]
+```
+
+Compared to a data.frame, tibbles are more strict: they never do partial matching, and they will generate a warning if the column you are trying to access does not exist.
+
+## 10.4 Interacting with older code
+Some older functions don’t work with tibbles. If you encounter one of these functions, use `as.data.frame()` to turn a tibble back to a `data.frame`:
+```{r Tibbles vs. data.frame 4}
+class(as.data.frame(tb))
+```
+
+## 10.5 Exercises
+1. How can you tell if an object is a tibble? (Hint: try printing mtcars, which is a regular data frame).
+- Visually you can tell by the printing method and how it stores the class of each variable underneath each variable. Or just get the class() of object and see whether it has tbl_df and tbl.
+
+```{r}
+is.tibble(mtcars)
+class(mtcars)
+```
+
+2. Compare and contrast the following operations on a data.frame and equivalent tibble. What is different? Why might the default data frame behaviours cause you frustration?
+```{r}
+df <- data.frame(abc = 1, xyz = "a")
+df$x # on a tibble this will throw a warning. Partial matching is not allowed
+df[, "xyz"] # on a tibble this will be a data frame still
+df[, c("abc", "xyz")] # This will be the same result in a tibble
+```
+
+The frustration is because in some situations a data frame will returns a different thing like in the last two previous lines of code. Tibble will return the same thing, providing consistency.
+
+3. If you have the name of a variable stored in an object, e.g. var <- "mpg", how can you extract the reference variable from a tibble?
+```{r}
+var <- "mpg"
+as_tibble(mtcars)
+as_tibble(mtcars)[[var]]
+
+# or
+as_tibble(mtcars)[var]
+```
+
+4. Practice referring to non-syntactic names in the following data frame by:
+- Extracting the variable called 1.
+- Plotting a scatterplot of 1 vs 2.
+- Creating a new column called 3 which is 2 divided by 1.
+- Renaming the columns to one, two and three.
+```{r}
+annoying <- tibble(
+  `1` = 1:10,
+  `2` = `1` * 2 + rnorm(length(`1`)))
+
+# extracting the variable called 1
+annoying[[1]]
+annoying$`1`
+
+# plotting a scatterplot of 1 vs 2
+ggplot2::ggplot(annoying,aes('1',`2`))+
+  geom_point()
+
+# creating a new column called 3 which is 2 divided by1
+annoying <- 
+  annoying %>% 
+  mutate(`3`=`2`/`1`)
+
+# Renaming the columns to one, two and three.
+names(annoying) <- c("one","two","three")
+
+# OR
+annoying
+annoying %>% 
+  rename(one=`1`,
+         two=`2`,
+         three=`3`)
+```
+
+5. What does tibble::enframe() do? When might you use it?
+It turns named vectors or list to two-column data frames.
+
+It's different from `as_tibble()` for lists because it creates a stacked data frame rather than a widy one. It all dependes on your data.
+```{r}
+lst <- list(female = 1, male = 2)
+as_tibble(lst)
+```
+
+6. What option controls how many additional column names are printed at the footer of a tibble?
+`options(tibble.width = Inf)` for all columns to be printed.

@@ -209,3 +209,207 @@ as_tibble(lst)
 
 6. What option controls how many additional column names are printed at the footer of a tibble?
 `options(tibble.width = Inf)` for all columns to be printed.
+
+# Chapter 11: Data import
+## 11.1: Introduction
+Working with data provided by R packages is a great way to learn the tools of data science, but at some point you want to stop learning and start working with your own data. In this chapter, you’ll learn how to read plain-text rectangular files into R. Here, we’ll only scratch the surface of data import, but many of the principles will translate to other forms of data. We’ll finish with a few pointers to packages that are useful for other types of data.
+
+### 11.1.1: Prerequisites
+```{r Data import intro}
+library(tidyverse)
+```
+
+## 11.2: Getting started
+Most of readr’s functions are concerned with turning flat files into data frames:
+
+1. `read_csv()` reads comma delimited files, `read_csv2()` reads semicolon separated files (common in countries where `,` is used as the decimal place), `read_tsv()` reads tab delimited files, and `read_delim()` reads in files with any delimiter.
+
+2. `read_fwf()` reads fixed width files. You can specify fields either by their widths with `fwf_widths()` or their position with `fwf_positions()`. `read_table()` reads a common variation of fixed width files where columns are separated by white space.
+
+3. `read_log()` reads Apache style log files. (But also check out webreadr which is built on top of `read_log()` and provides many more helpful tools.)
+
+These functions all have similar syntax: once you have masted one, you can use the others with ease. For the rest of this chapter we’ll focus on `read_csv()`. Not only are csv files one of the most common forms of data storage, but once you understand `read_csv()`, you can easily apply your knowledge to all the other functions in readr.
+
+The first argument to `read_csv()` is the most important: it’s the path to the file to read.
+
+```{r data import 1}
+# heights <- read_csv("data/heights.csv")
+```
+
+When you run `read_csv()` it prints out a column specification that gives the name and type of each column. That’s an important part of readr, which we’ll come back to in parsing a file.
+
+You can also supply an inline csv file. This is useful for experimenting with readr and for creating reproducible examples to share with others
+```{r data import 2}
+read_csv("a,b,c
+         1,2,3
+         4,5,6")
+```
+
+In both cases `read_csv()` uses the first line of the data for the column names, which is a very common convention. There are two cases where you might want to tweak this behaviour:
+
+1. Sometimes there are a few lines of metadata at the top of the file. You can use `skip = n` to skip the first n lines; or use `comment = "#"` to drop all lines that start with (e.g.) #.
+```{r data import 3}
+read_csv("The first line of metadata
+         The second line of metadata
+         x,y,z
+         1,2,3",skip=2)
+
+read_csv("# A comment I want to skip
+         x,y,z
+         1,2,3",comment="#")
+```
+
+2. The data might not have column names. You can use `col_names = FALSE` to tell `read_csv()` not to treat the first row as headings, and instead label them sequentially from `X1` to `Xn`:
+```{r data import 4}
+read_csv("1,2,3\n4,5,6",col_names = F)
+```
+
+("\n" is a convenient shortcut for adding a new line. You’ll learn more about it and other types of string escape in string basics.)
+
+Alternatively, you can pass col_names a characer vector which will be used as the column names:
+```{r data import 5}
+read_csv("1,2,3\n4,5,6",col_names = c("a","b","c"))
+```
+
+This is all you need to know to read ~75% of CSV files that you’ll encounter in practice. You can also easily adapt what you’ve learned to read tab separated files with `read_tsv()` and fixed width files with `read_fwf()`. To read in more challenging files, you’ll need to learn more about how readr parses each column, turning them into R vectors.
+
+### 11.2.1: Compared to base R
+If you’ve used R before, you might wonder why we’re not using `read.csv()`. There are a few good reasons to favour readr functions over the base equivalents:
+
+- They are typically much faster (~10x) than their base equivalents. Long running jobs have a progress bar, so you can see what’s happening. If you’re looking for raw speed, try `data.table::fread()`. It doesn’t fit quite so well into the tidyverse, but it can be quite a bit faster.
+
+- They produce tibbles, they don’t convert character vectors to factors, use row names, or munge the column names. These are common sources of frustration with the base R functions.
+
+- They are more reproducible. Base R functions inherit some behaviour from your operating system and environment variables, so import code that works on your computer might not work on someone else’s.
+
+### 11.2.2 Exercises
+1. What function would you use to read a file where fields were separated with “|”?
+You use `read_delim` and specify "|" in the delim argument.
+
+2. Apart from `file`, `skip`, and `comment`, what other arguments do `read_csv()` and `read_tsv()` have in common?
+All arguments! But that's logical because they both use read_delim as the function doing the work. Both functions just call `read_delim` with a set of predefine options for the `csv` and `tsv` formats using the `tokenize_*` functions. The `tokenize_*` functions simply return a list with the charachteristics of each format.
+
+3. What are the most important arguments to read_fwf()?
+The most important argument is `col_positions` because that's how determine the width at which each column is separated. You can determine the width with the `fwf_*` helper functions.
+
+4. Sometimes strings in a CSV file contain commas. To prevent them from causing problems they need to be surrounded by a quoting character, like `"` or `'`. By convention, `read_csv()` assumes that the quoting character will be ", and if you want to change it you’ll need to use `read_delim()` instead. What arguments do you need to specify to read the following text into a data frame?
+```{r Getting started exercise 4}
+read_csv("x,y\n1,'a,b'", quote = "'")
+read_delim("x,y\n1,'a,b'", delim = ",",  quote = "'")
+```
+
+5. Identify what is wrong with each of the following inline CSV files. What happens when you run the code?
+```{r Getting started exercise 5}
+read_csv("a,b\n1,2,3\n4,5,6") # more rows then column names
+read_csv("a,b\n1,2,3\n4,5,6", skip = 1, col_names = letters[1:3]) # fixed
+
+read_csv("a,b,c\n1,2\n1,2,3,4")
+read_csv("a,b,c\n1,2\n1,2,3,4") # second row has only two values but the remaining lines have 3
+
+read_csv("a,b\n\"1") # the second row is actually: ", 1. but it uses \" so it's a literal " and a comma is missing
+read_csv('a,b\n\",1', quote = "'") # it should be something like this I think
+
+read_csv("a,b\n1,2\na,b") # nothing wrong with this one. Maybe the column classes because a and b are column names errors
+read_csv("a,b\n1,2\na,b", n_max = 1) # this is the correct format.
+
+read_csv("a;b\n1;3") # this is ; deliminted
+read_csv2("a;b\n1;3")
+```
+
+## 11.3 Parsing a vector
+Before we get into the details of how readr reads files from disk, we need to take a little detour to talk about the `parse_*()` functions. These functions take a character vector and return a more specialised vector like a logical, integer, or date:
+
+```{r 11.3 Parsing a vector 1}
+str(parse_logical(c("TRUE","FALSE","FALSE")))
+str(parse_integer(c(c("1","2","3"))))
+str(parse_date(c("2010-01-01","1979-10-14")))
+```
+
+These functions are useful in their own right, but are also an important building block for readr. Once you’ve learned how the individual parsers work in this section, we’ll circle back and see how they fit together to parse a complete file in the next section.
+
+Like all functions in the tidyverse, the `parse_*()` functions are uniform: the first argument is a character vector to parse, and the na argument specifies which strings should be treated as missing:
+
+```{r 11.3 Parsing a vector 2}
+parse_integer(c("1","231",".","456"))
+parse_integer(c("1","231",".","456"),na=".")
+```
+
+If parsing fails, you will get a warning:
+```{r 11.3 Parsing a vector 3}
+x <- parse_integer(c("123","345","abc","123.45"))
+```
+
+And the failures will be missing in the output:
+```{r 11.3 Parsing a vector 4}
+x
+```
+
+If there are many parsing failures, you’ll need to use `problems()` to get the complete set. This returns a tibble, which you can then manipulate with dplyr.
+```{r 11.3 parsing a vector 5}
+problems(x)
+```
+
+Using parsers is mostly a matter of understanding what’s available and how they deal with different types of input. There are eight particularly important parsers:
+
+1. `parse_logical()` and `parse_integer()` parse logicals and integers respectively. There’s basically nothing that can go wrong with these parsers so I won’t describe them here further.
+```{r}
+
+```
+
+
+2. `parse_double()` is a strict numeric parser, and `parse_number()` is a flexible numeric parser. These are more complicated than you might expect because different parts of the world write numbers in different ways.
+
+3. `parse_character()` seems so simple that it shouldn’t be necessary. But one complication makes it quite important: character encodings.
+
+4. parse_factor() create factors, the data structure that R uses to represent categorical variables with fixed and known values.
+
+5. parse_datetime(), parse_date(), and parse_time() allow you to parse various date & time specifications. These are the most complicated because there are so many different ways of writing dates.
+
+### 11.3.1 Numbers
+It seems like it should be straightforward to parse a number, but three problems make it tricky:
+
+1. People write numbers differently in different parts of the world. For example, some countries use . in between the integer and fractional parts of a real number, while others use ,.
+
+2. Numbers are often surrounded by other characters that provide some context, like “$1000” or “10%”.
+
+3. Numbers often contain “grouping” characters to make them easier to read, like “1,000,000”, and these grouping characters vary around the world.
+
+To address the first problem, readr has the notion of a “locale”, an object that specifies parsing options that differ from place to place. When parsing numbers, the most important option is the character you use for the decimal mark. You can override the default value of `.` by creating a new locale and setting the `decimal_mark` argument:
+
+```{r 11.1 11.3.1 Numbers 1}
+library(tidyverse)
+
+parse_double("1.23")
+parse_double("1.23",local=locale(decimal_mark = "."))
+```
+
+readr’s default locale is US-centric, because generally R is US-centric (i.e. the documentation of base R is written in American English). An alternative approach would be to try and guess the defaults from your operating system. This is hard to do well, and, more importantly, makes your code fragile: even if it works on your computer, it might fail when you email it to a colleague in another country.
+
+`parse_number()` addresses the second problem: it ignores non-numeric characters before and after the number. This is particularly useful for currencies and percentages, but also works to extract numbers embedded in text.
+```{r 11.3.1 Numbers 1}
+parse_number("$100")
+parse_number("20%")
+parse_number("It cost #123.45")
+```
+
+The final problem is addressed by the combination of `parse_number()` and the locale as `parse_number()` will ignore the “grouping mark”:
+
+```{r}
+# used in America
+parse_number("$123,456,789")
+#> [1] 1.23e+08
+
+# Used in many parts of Europe
+parse_number("123.456.789", locale = locale(grouping_mark = "."))
+#> [1] 1.23e+08
+
+# Used in Switzerland
+parse_number("123'456'789", locale = locale(grouping_mark = "'"))
+```
+
+### 11.3.2 Strings
+It seems like `parse_character()` should be really simple — it could just return its input. Unfortunately life isn’t so simple, as there are multiple ways to represent the same string. To understand what’s going on, we need to dive into the details of how computers represent strings. In R, we can get at the underlying representation of a string using charToRaw():
+
+
+
+

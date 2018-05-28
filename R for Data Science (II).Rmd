@@ -1034,8 +1034,386 @@ preg %>%
   gather(gender,values,preginant)
 ```
 
-## 12.4 Separating and uniing
+## 12.4 Separating and uniting
 So far you’ve learned how to tidy `table2` and `table4`, but not `table3`. `table3` has a different problem: we have one column (`rate`) that contains two variables (`cases` and `population`). To fix this problem, we’ll need the `separate()` function. You’ll also learn about the complement of `separate()`: `unite()`, which you use if a single variable is spread across multiple columns.
 
 ### 12.4.1 Separate
-separate() pulls apart one column into multiple columns, by splitting wherever a separator character appears. Take table3:
+`separate()` pulls apart one column into multiple columns, by splitting wherever a separator character appears. Take `table3`:
+```{r 12.4.1 Separate 1}
+library(tidyverse)
+table3
+```
+
+The `rate` column contains both `cases` and `population` variables, and we need to split it into two variables. `separate()` takes the name of the column to separate, and the names of the columns to separate into, as shown in Figure 12.4 and the code below.
+```{r 12.4.1 Separate 2}
+table3 %>% 
+  separate(rate,into=c("cases","population"))
+```
+
+By default, `separate()` will split values wherever it sees a non-alphanumeric character (i.e. a character that isn’t a number or letter). For example, in the code above, `separate()` split the values of rate at the forward slash characters. If you wish to use a specific character to separate a column, you can pass the character to the sep argument of `separate()`. For example, we could rewrite the code above as:
+```{r 12.4.1 Separate3}
+table3 %>% 
+  separate(rate,into=c("cases","population"),sep="/")
+```
+
+Formally, `sep` is a regular expression, which we will learn more about in strings.
+
+Look carefully at the column types: you’ll notice that `case` and `population` are character columns. This is the default behaviour in `separate()`: it leaves the type of the column as is. Here, however, it’s not very useful as those really are numbers. We can ask `separate()` to try and convert to better types using `convert = TRUE`:
+```{r 12.4.1 Separate 4}
+table3 %>% 
+  separate(rate,into=c("cases","population"),convert=T)
+```
+
+You can also pass a vector of integers to `sep`. `separate()` will interpret the integers as positions to split at. Positive values start at 1 on the far-left of the strings; negative value start at -1 on the far-right of the strings. When using integers to separate strings, the length of `sep` should be one less than the number of names in `into`.
+
+You can use this arrangement to separate the last two digits of each year. This make this data less tidy, but is useful in other cases, as you’ll see in a little bit.
+```{r 12.4.1 Separate 5}
+table3
+table3 %>% 
+  separate(year,into=c("century","year"),sep=2)
+```
+
+### 12.4.2 Unite
+`unite()` is the inverse of `separate()`: it combines multiple columns into a single column. You’ll need it much less frequently than `separate()`, but it’s still a useful tool to have in your back pocket.
+
+We can use `unite()` to rejoin the century and year columns that we created in the last example. That data is saved as `tidyr::table5`. `unite()` takes a data frame, the name of the new variable to create, and a set of columns to combine, again specified in `dplyr::select()` style:
+```{r 12.4.2 Unite1}
+table5
+table5 %>% 
+  unite(new,century,year)
+```
+
+In this case we also need to use the `sep` argument. The default will place an underscore (`_`) between the values from different columns. Here we don’t want any separator so we use `""`:
+```{r 12.4.2 Unite2}
+table5 %>% 
+  unite(new,century,year,sep="")
+```
+
+### 12.4.3 Exercises
+1. What do the `extra` and `fill` arguments do in `separate()`? Experiment with the various options for the following two toy datasets.
+```{r 12.4.3 Exercises 1}
+tibble(x=c("a,b,c","d,e,f,g","h,i,j")) %>% 
+  separate(x,c("one","two","three"))
+
+tibble(x=c("a,b,c","d,e","f,g,i")) %>% 
+  separate(x,c("one","two","three"))
+```
+
+It's simple. x has vectors with 3 and 4 characters but we specify 3 columns. `fill` has three values: `warn`, `right` and `left`. Here I specify a fourth column to place the extra letter. The first fills the missing values with the extra character using the right most match. left does the same thing but without a warning. and left places the extra character empty in the first column.
+```{r  12.4.3 Exercises 1 solution}
+tibble(x = c("a,b,c", "d,e,f,g", "h,i,j")) %>% 
+  separate(x, c("one", "two", "three", "four"))
+
+tibble(x = c("a,b,c", "d,e,f,g", "h,i,j")) %>% 
+  separate(x, c("one", "two", "three", "four"), fill = "right")
+
+tibble(x = c("a,b,c", "d,e,f,g", "h,i,j")) %>% 
+  separate(x, c("one", "two", "three", "four"), fill = "left")
+```
+
+I've deleted the fourth column to see how this works. extra on the other hand, deals with either droping or merging the extra characters. warn drops the extra character and emits a warning messge. drop does the same thing but without a warning and merge merges the extra character to it's closest end. No aparent option to merge with the first column rather than the last.
+```{r  12.4.3 Exercises 1 solution}
+tibble(x = c("a,b,c", "d,e,f,g", "h,i,j")) %>% 
+  separate(x, c("one", "two", "three"), extra = "warn")
+
+tibble(x = c("a,b,c", "d,e,f,g", "h,i,j")) %>% 
+  separate(x, c("one", "two", "three"), extra = "drop")
+
+tibble(x = c("a,b,c", "d,e,f,g", "h,i,j")) %>% 
+  separate(x, c("one", "two", "three"), extra = "merge")
+```
+
+
+2. Both `unite()` and `separate()` have a remove argument. What does it do? Why would you set it to FALSE?
+
+Because `unite` and `separate` receive columns and create new ones, `remove` allows you to remove the original columns that you unite/separate on. You might want to leave them as they are if you're checking whether the transformation was done correctly.
+
+3. Compare and contrast separate() and extract(). Why are there three variations of separation (by position, by separator, and with groups), but only one unite?
+
+Because you can separate differently. Examples below:
+```{r 12.4.3 Exercises 3}
+df_sep <- data.frame(x = c(NA, "a-b", "a-d", "b-c", "d-e"))
+df_extract <- data.frame(x = c(NA, "ap.b", "aa/d", "b.c", "d-ee"))
+
+# This is easy with separate
+df_sep %>% separate(x, c("new", "old"), sep = 1)
+df_sep %>% separate(x, c("new", "old"), sep = "-")
+
+# Here we can define 2 or more groups to separate the more complex string
+df_extract %>% extract(x, c("new", "old"), regex = "(.*)[:punct:](.*)")
+```
+
+## 12.5 Missing values 
+Changing the representation of a dataset brings up an important subtlety of missing values. Surprisingly, a value can be missing in one of two possible ways:
+
+- Explicitly, i.e. flagged with NA.
+- Implicitly, i.e. simply not present in the data.
+
+Let’s illustrate this idea with a very simple data set:
+```{r ## 12.5 Missing values 1}
+stocks <- tibble(
+  year= c(2015, 2015, 2015, 2015, 2016, 2016, 2016),
+  qtr=c(   1,    2,    3,    4,    2,    3,    4),
+  return=c(1.88, 0.59, 0.35,   NA, 0.92, 0.17, 2.66)
+)
+```
+
+There are two missing values in this dataset:
+1. The return for the fourth quarter of 2015 is explicitly missing, because the cell where its value should be instead contains NA.
+2. The return for the first quarter of 2016 is implicitly missing, because it simply does not appear in the dataset.
+
+One way to think about the difference is with this Zen-like koan: An explicit missing value is the presence of an absence; an implicit missing value is the absence of a presence.
+
+The way that a dataset is represented can make implicit values explicit. For example, we can make the implicit missing value explicit by putting years in the columns:
+```{r 12.5 Missing values 2}
+stocks %>% 
+  spread(year,return)
+```
+
+Because these explicit missing values may not be important in other representations of the data, you can set `na.rm = TRUE` in `gather()` to turn explicit missing values implicit:
+```{r 12.5 Missing values 3}
+stocks %>% 
+  spread(year,return) %>% 
+  gather(`2015`,`2016`,key=year,value=return,na.rm = T)
+
+stocks %>% 
+  spread(year,return) %>% 
+  gather(year,return,`2015`:`2016`,na.rm=T)
+```
+
+Another important tool for making missing values explicit in tidy data is `complete()`:
+```{r 12.5 Missing values 4}
+stocks
+stocks %>% 
+  complete(year,qtr)
+```
+
+`complete()` takes a set of columns, and finds all unique combinations. It then ensures the original dataset contains all those values, filling in explicit NAs where necessary.
+
+There’s one other important tool that you should know for working with missing values. Sometimes when a data source has primarily been used for data entry, missing values indicate that the previous value should be carried forward:
+
+```{r 12.5 Missing values 5}}
+treatment <- tribble(
+  ~ person,           ~ treatment, ~response,
+  "Derrick Whitmore", 1,           7,
+  NA,                 2,           10,
+  NA,                 3,           9,
+  "Katherine Burke",  1,           4
+)
+```
+
+You can fill in these missing values with `fill()`g. It takes a set of columns where you want missing values to be replaced by the most recent non-missing value (sometimes called last observation carried forward).
+```{r 12.5 Missing values 6}
+treatment %>% 
+  fill(person)
+```
+
+### 12.5.1 Exercises
+1. Compare and contrast the fill arguments to `spread()` and `complete()`.
+
+The `fill` argument in `spread()` will replace ALL missing values regardless of columns with the same value. The fill argument of `complete()` accepts a list where each slot is the missing value for each column. So missing values per column are customizable to any chosen missing.
+
+2. What does the direction argument to `fill()` do?
+If we have this dataset
+```{r 12.5.1 Exercise 2}
+library(tidyverse)
+
+treatment <- tribble(
+  ~person,~treatment,~response,
+  "Derrick Whitmore",1,7,
+  NA,2,10,
+  NA,3,9,
+  "Katherine Burke",1,4
+)
+treatment
+```
+
+We have two missing values in column `person`. We can carry over the value `Katherine` to replace the missing values or we could take `Derrick` to replace the missing values. `.direction` does exactly that by specifying either down or up.
+```{r Ex 1.}
+library(tidyr) #fill()
+fill(treatment,person, .direction="up")
+```
+
+```{r Ex.2}
+fill(treatment, person,.direction = "down")
+```
+
+## 12.6 Case Study
+
+To finish off the chapter, let’s pull together everything you’ve learned to tackle a realistic data tidying problem. The tidyr::who dataset contains tuberculosis (TB) cases broken down by year, country, age, gender, and diagnosis method. The data comes from the 2014 World Health Organization Global Tuberculosis Report, available at http://www.who.int/tb/country/data/download/en/.
+
+There’s a wealth of epidemiological information in this dataset, but it’s challenging to work with the data in the form that it’s provided:
+
+```{r 12.6 case study 1: data overview}
+library(tidyr)
+head(who,20)
+names(who)
+
+library(Amelia)
+missmap(who)
+```
+
+This is a very typical real-life example dataset. It contains redundant columns, odd variable codes, and many missing values. In short, `who` is messy, and we’ll need multiple steps to tidy it. Like dplyr, tidyr is designed so that each function does one thing well. That means in real-life situations you’ll usually need to string together multiple verbs into a pipeline.
+
+The best place to start is almost always to gather together the columns that are not variables. Let’s have a look at what we’ve got:
+- It looks like `country`, `iso2`, and `iso3` are three variables that redundantly specify the country.
+- `year` is clearly also a variable.
+- We don’t know what all the other columns are yet, but given the structure in the variable names (e.g. `new_sp_m014`, `new_ep_m014`, `new_ep_f014`) these are likely to be values, not variables.
+
+So we need to gather together all the columns from `new_sp_m014` to `newrel_f65`. We don’t know what those values represent yet, so we’ll give them the generic name "key". We know the cells represent the count of cases, so we’ll use the variable cases. There are a lot of missing values in the current representation, so for now we’ll use `na.rm` just so we can focus on the values that are present.
+```{r 12.6 Case study 2}
+who1 <- who %>% 
+  gather(new_sp_m014:newrel_f65,key="key",value="cases",na.rm=T)
+head(who1,10)
+```
+
+We can get some hint of the structure of the values in the new `key` column by counting them:
+```{r 12.6 case study 3}
+who1 %>% 
+  count(key)
+```
+
+You might be able to parse this out by yourself with a little thought and some experimentation, but luckily we have the data dictionary handy. It tells us:
+1. The first three letters of each column denote whether the column contains new or old cases of TB. In this dataset, each column contains new cases.
+2. The next two letters describe the type of TB:
+  - rel stands for cases of relapse
+  - ep stands for cases of extrapulmonary TB
+  - sn stands for cases of pulmonary TB that could not be   -     - diagnosed by a pulmonary smear (smear negative)
+  - sp stands for cases of pulmonary TB that could be diagnosed be a pulmonary smear (smear positive)
+3. The sixth letter gives the sex of TB patients. The dataset groups cases by males (`m`) and females (`f`).
+4. The remaining numbers gives the age group. The dataset groups cases into seven age groups:
+  - `014` = 0 – 14 years old
+  - `1524` = 15 – 24 years old
+  - `2534` = 25 – 34 years old
+  - `3544` = 35 – 44 years old
+  - `4554` = 45 – 54 years old
+  - `5564` = 55 – 64 years old
+  - `65` = 65 or older
+
+We need to make a minor fix to the format of the column names: unfortunately the names are slightly inconsistent because instead of `new_rel` we have `newrel` (it’s hard to spot this here but if you don’t fix it we’ll get errors in subsequent steps). You’ll learn about str_replace() in strings, but the basic idea is pretty simple: replace the characters “newrel” with “`new_rel`”. This makes all variable names consistent.
+```{r 12.6 case study 4}
+who2 <- who1 %>% 
+  mutate(key=stringr::str_replace(key,"newrel","new_rel"))
+tail(who2)
+```
+
+We can separate the values in each code with two passes of `separate()`. The first pass will split the codes at each underscore.
+```{r 12.6 case study 5}
+who3 <- who2 %>% 
+  separate(key, c("new","type","sexage"),sep="_")
+head(who3)
+```
+
+Then we might as well drop the `new` column because it’s constant in this dataset. While we’re dropping columns, let’s also drop `iso2` and `iso3` since they’re redundant.
+```{r 12.6 case study 6}
+who3 %>% 
+  count(new)
+
+who4 <- who3 %>% 
+  select(-new,-iso2,-iso3)
+```
+
+Next we’ll separate `sexage` into `sex` and `age` by splitting after the first character:
+```{r 12.6 case study 7}
+who5 <- who4 %>% 
+  separate(sexage,c("sex","age"),sep=1)
+```
+
+The `who` dataset is now tidy!
+
+I’ve shown you the code a piece at a time, assigning each interim result to a new variable. This typically isn’t how you’d work interactively. Instead, you’d gradually build up a complex pipe:
+```{r}
+who %>% 
+  gather(code,value,new_sp_m014:newrel_f65,na.rm = T) %>% 
+   mutate(code = stringr::str_replace(code, "newrel", "new_rel")) %>%
+  separate(code, c("new", "var", "sexage")) %>% 
+  select(-new, -iso2, -iso3) %>% 
+  separate(sexage, c("sex", "age"), sep = 1)
+```
+
+### 12.6.1 Exercises
+1. In this case study I set `na.rm = TRUE` just to make it easier to check that we had the correct values. Is this reasonable? Think about how missing values are represented in this dataset. Are there implicit missing values? What’s the difference between an NA and zero?
+
+A proper analysis would not exclude the missing values because that's information! It is the presence of an absence. So for our purposes it is reasonable, but for appropriate descriptive statistics it is important to report the number of missing values.
+
+How many implicit missing values are there? That's easy! We use complete with the gathered dataset.
+```{r 12.6.1 1}
+first <- 
+  who %>%
+  gather(
+    new_sp_m014:newrel_f65,
+    key="key",
+    value="cases"
+  )
+
+second <- first %>% 
+  complete(country,year,key)
+
+# we merge both dataset where there are no matching values (so left over rows)
+first %>% 
+  anti_join(second,by=c("country","year","key"))
+```
+
+- > So no implicit missing values. And the difference between an NA and a 0 is that 0 means there's 0 cases in that cell but NA could mean that there's 20 cases but weren't reported.
+
+2. What happens if you neglect the `mutate()` step? (`mutate(key = stringr::str_replace(key, "newrel", "new_rel"))`)
+
+Well, if we have `new_sp` and `newrel` and we separate on `_` we would get a column where there's `new` and `newrel` together and in the other column there would only be `sp`. If we replace `newrel` with `new_rel` then the same pattern is constant in the same column.
+
+3. I claimed that `iso2` and `iso3` were redundant with `country`. Confirm this claim.
+```{r 12.6 Exercises 3}
+who %>%
+  count(country,iso2,iso3) %>% 
+  count(country) %>% 
+  filter(nn>1)
+```
+
+If there would be repetitions of country, then this would equal more than 1.
+
+4. For each country, year, and sex compute the total number of cases of TB. Make an informative visualisation of the data.
+```{r 12.6 Exercises 4}
+who1 <- 
+  who %>%
+  gather(
+    new_sp_m014:newrel_f65,
+    key = "key",
+    value = "cases",
+    na.rm = TRUE
+  ) %>%
+  mutate(key = stringr::str_replace(key, "newrel", "new_rel")) %>%
+  separate(key, c("new", "type", "sexage"), sep = "_") %>%
+  select(-new, -iso2, -iso3) %>%
+  separate(sexage, c("sex", "age"), sep = 1)
+
+who1 %>%
+  group_by(country, year, sex) %>%
+  summarize(n = sum(cases)) %>%
+  ggplot(aes(year, n, group = country)) +
+  geom_line(alpha = 2/4) +
+  facet_wrap(~ sex)
+```
+
+
+## 12.7 Non-tidy data
+Before we continue on to other topics, it’s worth talking briefly about non-tidy data. Earlier in the chapter, I used the pejorative term “messy” to refer to non-tidy data. That’s an oversimplification: there are lots of useful and well-founded data structures that are not tidy data. There are two main reasons to use other data structures:
+
+Alternative representations may have substantial performance or space advantages.
+
+Specialised fields have evolved their own conventions for storing data that may be quite different to the conventions of tidy data.
+
+Either of these reasons means you’ll need something other than a tibble (or data frame). If your data does fit naturally into a rectangular structure composed of observations and variables, I think tidy data should be your default choice. But there are good reasons to use other structures; tidy data is not the only way.
+
+If you’d like to learn more about non-tidy data, I’d highly recommend this thoughtful blog post by Jeff Leek: http://simplystatistics.org/2016/02/17/non-tidy-data/
+
+# Chapter 13: Relational Data
+## 13.1 Introduction
+It’s rare that a data analysis involves only a single table of data. Typically you have many tables of data, and you must combine them to answer the questions that you’re interested in. Collectively, multiple tables of data are called relational data because it is the relations, not just the individual datasets, that are important.
+
+Relations are always defined between a pair of tables. All other relations are built up from this simple idea: the relations of three or more tables are always a property of the relations between each pair. Sometimes both elements of a pair can be the same table! This is needed if, for example, you have a table of people, and each person has a reference to their parents.
+
+To work with relational data you need verbs that work with pairs of tables. There are three families of verbs designed to work with relational data:
+
+
+
+
+

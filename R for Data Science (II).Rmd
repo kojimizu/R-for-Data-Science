@@ -1793,14 +1793,63 @@ flights %>%
 ```
 
 3. Is there a relationship between the age of a plane and its delays?
-```{r}
-
+```{r 13.4.6-3}
+flights %>% 
+  mutate(tot_delay=arr_delay+dep_delay) %>% 
+  group_by(tailnum) %>% 
+  summarize(avg_delay=mean(tot_delay,na.rm = T)) %>% 
+  left_join(select(planes,tailnum,year),by="tailnum") %>% 
+  mutate(year=2013-year) %>% 
+  ggplot(aes(avg_delay,year))+
+  geom_point()+
+  geom_smooth()
 ```
 
+From a very preliminary view, there doesn't seem to be, although the some more older planes have very short delays and some younger planes have very high delays. This pattern however could be due to other things such as the origin/destionation.
 
 4. What weather conditions make it more likely to see a delay?
+```{r 13.4.6-4}
+avg_del <- 
+  flights %>% 
+  mutate(tot_delay=arr_delay+dep_delay) %>% 
+  group_by(month,day) %>% 
+  summarize(avg_delay=mean(tot_delay,na.rm=T))
+
+avg_weather <- 
+  weather %>% 
+  group_by(month,day) %>% 
+  select(-hour) %>% 
+  summarize_at(vars(temp,humid,wind_speed,precip),mean,na.rm=T)
+
+avg_del %>%
+  left_join(avg_weather) %>%
+  ungroup() %>% 
+  mutate(avg_delay = cut_width(tot_delay, 35)) %>%
+  gather(weather, metrics, -(month:avg_delay)) %>%
+  ggplot(aes(avg_delay, metrics)) +
+  geom_boxplot() +
+  facet_wrap(~ weather, scales = "free_y")
+```
+
+Humidity seems to be the one more related to delays, although this is in isolation. A more thorough approach would be to create a grid of all possible combinations of weather conditions and match them up with the delay and then compare the combination of weather conditions with the highest delays.
 
 5. What happened on June 13 2013? Display the spatial pattern of delays, and then use Google to cross-reference with the weather.
+```{r 13.4.6-5}
+flights %>% 
+  mutate(tot_delay=arr_delay+dep_delay) %>% 
+  group_by(month,day,dest) %>% 
+  summarize(avg_delay=mean(tot_delay,na.rm=T)) %>% 
+  filter(month==6,day==13) %>% 
+  left_join(select(airports,faa,lat,lon),by=c("dest"="faa")) %>% ggplot(aes(lon,lat,color=avg_delay))+
+  borders("state")+
+  geom_point(size=2,alpha=0.8)+
+  xlim(c(-130,-65))+
+  ylim(c(20,50))+
+  coord_quickmap()+
+  viridis::scale_color_viridis()
+  
+```
+
 
 ### 13.4.7 Other implementations
 `base::merge()` can perform all four types of mutating join:
@@ -1812,3 +1861,165 @@ right_join(x,y) | merge(x,y,all.y=T)
 full_join(x,y) | merge(x,y,all.x=T,all.y=T)
 
 ## 13.5 Filtering joins
+Filtering joins match observations in the same way as mutating joins, but affect the observations, not the variables. There are two types:
+
+- `semi_join(x, y)` keeps all observations in `x` that have a match in `y`.
+- `anti_join(x, y)` drops all observations in `x` that have a match in `y`.
+
+Semi-joins are useful for matching filtered summary tables back to the original rows. For example, imagine you’ve found the top ten most popular destinations:
+```{r 13.5 Filtering joins 1}
+top_dest <- flights %>% 
+  count(dest,sort=T) %>% 
+  head(10)
+top_dest
+```
+
+Now you want to find each flight that went to one of those destinations. You could construct a filter yourself:
+```{r 13.5 Filtering joins 2}
+flights %>% 
+  filter(dest %in% top_dest$dest) %>% 
+  head(10)
+```
+
+But it’s difficult to extend that approach to multiple variables. For example, imagine that you’d found the 10 days with highest average delays. How would you construct the filter statement that used `year`, `month`, and `day` to match it back to `flights`?
+
+Instead you can use a semi-join, which connects the two tables like a mutating join, but instead of adding new columns, only keeps the rows in `x` that have a match in `y`:
+```{r 13.5 Flitering joins 3}
+flights %>% 
+  semi_join(top_dest)
+```
+
+Graphically, a semi-join looks like this:
+Only the existence of a match is important; it doesn’t matter which observation is matched. This means that filtering joins never duplicate rows like mutating joins do:
+
+Anti-joins are useful for diagnosing join mismatches. For example, when connecting `flights` and `planes`, you might be interested to know that there are many `flights` that don’t have a match in planes:
+```{r 13.5 Filtering joins 4}
+flights %>% 
+  anti_join(planes,by=c("tailnum")) %>% 
+  count(tailnum,sort=T)
+
+```
+
+### 13.5.1 Exercises
+1. What does it mean for a flight to have a missing tailnum? What do the tail numbers that don’t have a matching record in planes have in common? (Hint: one variable explains ~90% of the problems.)
+```{r 13.5.1-1}
+flights %>% 
+  anti_join(planes,by=c("tailnum")) %>% 
+  count(carrier,sort=T)
+```
+
+AA and MQ don't seem to report tail numbers.
+
+2. Filter flights to only show flights with planes that have flown at least 100 flights.
+```{r 13.5.1-2}
+flights %>% 
+  semi_join(count(flights,tailnum)%>% 
+              filter(n>=100))
+```
+
+3. Combine fueleconomy::vehicles and fueleconomy::common to find only the records for the most common models.
+```{r 13.5.1-1}
+fueleconomy::common
+fueleconomy::vehicles
+
+ten_common <- 
+  fueleconomy::common %>% 
+  ungroup() %>% 
+  arrange(-n) %>% 
+  top_n(10,n)
+
+fueleconomy::vehicles %>% 
+  semi_join(ten_common)
+```
+
+4. Find the 48 hours (over the course of the whole year) that have the worst delays. Cross-reference it with the weather data. Can you see any patterns?
+```{r 13.5.1-4}
+fn <-
+  flights %>%
+  group_by(month, day) %>%
+  summarize(avg_delay = sum(arr_delay + dep_delay, na.rm = TRUE)) %>%
+  mutate(twoday_delay = avg_delay + lag(avg_delay)) %>%
+  arrange(-twoday_delay)
+
+wea <-
+  weather %>%
+  group_by(month, day) %>%
+  summarize_at(vars(humid, precip, temp), mean, na.rm = TRUE)
+
+fn %>%
+  left_join(wea) %>%
+  arrange(twoday_delay)
+```
+
+5. What does anti_join(flights, airports, by = c("dest" = "faa")) tell you? What does anti_join(airports, flights, by = c("faa" = "dest")) tell you?
+```{r 13.5.1-5}
+anti_join(flights, airports, by = c("dest" = "faa"))
+# Give me the flights from the destionations that that are not present in the `airports` dataset.
+
+
+anti_join(airports, flights, by = c("faa" = "dest"))
+# Give me the airports that are not present as destinations in the `flights` dataset.
+```
+
+6. You might expect that there’s an implicit relationship between plane and airline, because each plane is flown by a single airline. Confirm or reject this hypothesis using the tools you’ve learned above.
+```{r 13.5.1-6}
+flights %>%
+  group_by(tailnum, carrier) %>%
+  count() %>%
+  filter(n() > 1) %>%
+  select(tailnum) %>%
+  distinct(tailnum)
+```
+
+## 13.6 Join problems
+The data you’ve been working with in this chapter has been cleaned up so that you’ll have as few problems as possible. Your own data is unlikely to be so nice, so there are a few things that you should do with your own data to make your joins go smoothly.
+
+1. Start by identifying the variables that form the primary key in each table. You should usually do this based on your understanding of the data, not empirically by looking for a combination of variables that give a unique identifier. If you just look for variables without thinking about what they mean, you might get (un)lucky and find a combination that’s unique in your current data but the relationship might not be true in general.
+
+For example, the altitude and longitude uniquely identify each airport, but they are not good identifiers!
+```{r}
+airports %>% 
+  count(alt,lon) %>% 
+  filter(n>1)
+```
+
+2. Check that none of the variables in the primary key are missing. If a value is missing then it can’t identify an observation!
+3. Check that your foreign keys match primary keys in another table. The best way to do this is with an `anti_join()`. It’s common for keys not to match because of data entry errors. Fixing these is often a lot of work.
+
+If you do have missing keys, you’ll need to be thoughtful about your use of inner vs. outer joins, carefully considering whether or not you want to drop rows that don’t have a match.
+
+Be aware that simply checking the number of rows before and after the join is not sufficient to ensure that your join has gone smoothly. If you have an inner join with duplicate keys in both tables, you might get unlucky as the number of dropped rows might exactly equal the number of duplicated rows!
+
+## 13.7 Set operations
+The final type of two-table verb are the set operations. Generally, I use these the least frequently, but they are occasionally useful when you want to break a single complex filter into simpler pieces. All these operations work with a complete row, comparing the values of every variable. These expect the `x` and `y` inputs to have the same variables, and treat the observations like sets:
+
+- `intersect(x, y)`: return only observations in both x and y.
+- `union(x, y)`: return unique observations in x and y.
+- `setdiff(x, y)`: return observations in x, but not in y.
+
+Given the sample data:
+```{r}
+df1 <- tribble(
+  ~x, ~y,
+   1,  1,
+   2,  1
+)
+df2 <- tribble(
+  ~x, ~y,
+   1,  1,
+   1,  2
+)
+```
+
+The four possibilities are: 
+```{r}
+intersect(df1,df2)
+union(df1,df2)
+setdiff(df1,df2)
+setdiff(df2,df1)
+```
+
+# Chapter 14: Strings
+## 14.1 Introduction
+This chapter introduces you to string manipulation in R. You’ll learn the basics of how strings work and how to create them by hand, but the focus of this chapter will be on regular expressions, or regexps for short. Regular expressions are useful because strings usually contain unstructured or semi-structured data, and regexps are a concise language for describing patterns in strings. When you first look at a regexp, you’ll think a cat walked across your keyboard, but as your understanding improves they will soon start to make sense
+

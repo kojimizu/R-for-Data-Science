@@ -803,6 +803,7 @@ table1 %>%
 
 # visualize changes over time
 library(ggplot2)
+table1
 ggplot(table1,aes(year,cases))+
   geom_line(aes(group=country),color="grey50")+
   geom_point(aes(color=country))

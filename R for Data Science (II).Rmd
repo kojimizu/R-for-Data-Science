@@ -2756,12 +2756,575 @@ str_replace_all(c("hey this is a /", "and another / in the pic"),
 
 2. Implement a simple version of `str_to_lower()` using `replace_all()`.
 ```{r}
+my_str_lower <- function(x) {
+  lower_let <- letters
+  names(lower_let) <- LETTERS
+  str_replace_all(x, lower_let)
+}
 
+identical(my_str_lower(sentences), str_to_lower(sentences))
+```
+
+3. Switch the first and last letters in words. Which of those strings are still words?
+```{r}
+str_replace_all(words, "^([a-z])(.*)([a-z])$", c("\\3\\2\\1"))
 ```
 
 
-3. Switch the first and last letters in words. Which of those strings are still words?
-
-
 ### 14.4.6 Splitting
+Use str_split() to split a string up into pieces. For example, we could split sentences into words:
+```{r 14.4.6-1}
+sentences %>% 
+  head(5) %>% 
+  str_split(" ")
+```
+
+Because each component might contain a different number of pieces, this returns a list. If you’re working with a length-1 vector, the easiest thing is to just extract the first element of the list:
+```{r 14.4.6-2}
+"a|b|c|d" %>% 
+  str_split("\\|") %>% 
+  .[[1]]
+
+```
+
+Otherwise, like the other stringr functions that return a list, you can use `simplify = TRUE` to return a matrix:
+```{r 14.4.6-3}
+sentences %>% 
+  head(5) %>% 
+  str_split(" ",simplify = T)
+```
+
+You can also request a maximum number of pieces:
+```{r 14.4.6-4}
+fields <- c("Name:Hadley","Country:NZ","Age:35")
+fields %>% str_split(":",n=2,simplify=T)
+```
+
+Instead of splitting up strings by patterns, you can also split up by character, line, sentence and word boundary()s:
+```{r 14.4.6-5}
+x <- "This is a sentence. This is another sentence."
+str_view_all(x,boundary("word"))
+```
+
+```{r}
+str_split(x," ")[[1]]
+str_split(x,boundary("word"))[[1]]
+```
+
+### 14.4.7 Find matches
+`str_locate()` and `str_locate_all()` give you the starting and ending positions of each match. These are particularly useful when none of the other functions does exactly what you want. You can use `str_locate()` to find the matching pattern, `str_sub()` to extract and/or modify them.
+
+## 14.5 Other types of pattern
+When you use a pattern that’s a string, it’s automatically wrapped into a call to `regex()`:
+```{r}
+# regular call
+str_view(fruit,"nana")
+# short hand
+str_view(fruit,regex("nana"))
+```
+
+You can use the other arguments of `regex()` to control details of the match:
+
+- `ignore_case = TRUE` allows characters to match either their uppercase or lowercase forms. This always uses the current locale.
+```{r}
+bananas <- c("banana","banana","BANANA")
+str_view(bananas,"banana")
+
+str_view(bananas, regex("banana",ignore_case = T))
+```
+
+- `multiline = TRUE` allows `^ `and `$` to match the start and end of each line rather than the start and end of the complete string.
+```{r}
+x <- "Line 1\nLine 2\nLine 3"
+str_extract_all(x,"^Line")[[1]]
+str_extract_all(x,regex("^Line",multiline = T))
+```
+
+- `comments = TRUE` allows you to use comments and white space to make complex regular expressions more understandable. Spaces are ignored, as is everything after `#`. To match a literal space, you’ll need to escape it: `"\\ "`.
+```{r}
+phone <- regex("
+  \\(?     # optional opening parens
+  (\\d{3}) # area code
+  [)- ]?   # optional closing parens, dash, or space
+  (\\d{3}) # another three numbers
+  [ -]?    # optional space or dash
+  (\\d{3}) # three more numbers
+  ", comments = TRUE)
+
+str_match("514-791-8141", phone)
+```
+
+- `dotall = TRUE` allows . to match everything, including `\n`.
+
+There are three other functions you can use instead of `regex()`:
+- `fixed()`: matches exactly the specified sequence of bytes. It ignores all special regular expressions and operates at a very low level. This allows you to avoid complex escaping and can be much faster than regular expressions. The following microbenchmark shows that it’s about 3x faster for a simple example.
+```{r}
+# install.packages("microbenchmark")
+microbenchmark::microbenchmark(
+  fixed = str_detect(sentences, fixed("the")),
+  regex = str_detect(sentences, "the"),
+  times = 20
+)
+```
+
+Beware using `fixed()` with non-English data. It is problematic because there are often multiple ways of representing the same character. For example, there are two ways to define “á”: either as a single character or as an “a” plus an accent:
+```{r}
+a1 <- "\u00e1"
+a2 <- "a\u0301"
+c(a1, a2)
+#> [1] "á" "á"
+a1 == a2
+#> [1] FALSE
+```
+
+They render identically, but because they’re defined differently, `fixed()` doesn’t find a match. Instead, you can use `coll()`, defined next, to respect human character comparison rules:
+```{r}
+str_detect(a1,fixed(a2))
+str_detect(a1,coll(a2))
+```
+
+- `coll()`: compare strings using standard collation rules. This is useful for doing case insensitive matching. Note that `coll()` takes a locale parameter that controls which rules are used for comparing characters. Unfortunately different parts of the world use different rules!
+```{r}
+# That means you also need to be aware of the difference
+# when doing case insensitive matches:
+i <- c("I", "İ", "i", "ı")
+i
+#> [1] "I" "İ" "i" "ı"
+
+str_subset(i, coll("i", ignore_case = TRUE))
+#> [1] "I" "i"
+str_subset(i, coll("i", ignore_case = TRUE, locale = "tr"))
+#> [1] "İ" "i"
+```
+
+Both `fixed()` and `regex()` have ignore_case arguments, but they do not allow you to pick the locale: they always use the default locale. You can see what that is with the following code; more on stringi later.
+```{r}
+stringi::stri_locale_info()
+```
+
+The downside of `coll()` is speed; because the rules for recognising which characters are the same are complicated, `coll()` is relatively slow compared to `regex()` and `fixed()`.
+
+As you saw with `str_split()` you can use `boundary()` to match boundaries. You can also use it with the other functions:
+```{r}
+x <- "This is a sentence."
+str_view_all(x,boundary("word"))
+str_extract_all(x,boundary("word"))
+```
+
+## 14.6 Other uses of regular expressions
+There are two useful function in base R that also use regular expressions:
+- `apropos()` searches all objects available from the global environment. This is useful if you can’t quite remember the name of the function.
+```{r}
+apropos("replace")
+```
+
+- `dir()` lists all the files in a directory. The pattern argument takes a regular expression and only returns file names that match the pattern. For example, you can find all the R Markdown files in the current directory with:
+```{r}
+head(dir(pattern="\\.Rmd$"))
+```
+
+
+## 14.7 Stringi
+stringr is built on top of the stringi package. stringr is useful when you’re learning because it exposes a minimal set of functions, which have been carefully picked to handle the most common string manipulation functions. stringi, on the other hand, is designed to be comprehensive. It contains almost every function you might ever need: stringi has 232 functions to stringr’s 43.
+
+If you find yourself struggling to do something in stringr, it’s worth taking a look at stringi. The packages work very similarly, so you should be able to translate your stringr knowledge in a natural way. The main difference is the prefix: `str_ vs`. `stri_`.
+
+# Chapter 15: Factors
+## 15.1 Introduction
+In R, factors are used to work with categorical variables, variables that have a fixed and known set of possible values. They are also useful when you want to display character vectors in a non-alphabetical order.
+
+Historically, factors were much easier to work with than characters. As a result, many of the functions in base R automatically convert characters to factors. This means that factors often crop up in places where they’re not actually helpful. Fortunately, you don’t need to worry about that in the tidyverse, and can focus on situations where factors are genuinely useful.
+
+For more historical context on factors, I recommend stringsAsFactors: An unauthorized biography by Roger Peng, and stringsAsFactors = <sigh> by Thomas Lumley.
+
+## 15.1.1. Prerequisites
+To work with factors, we’ll use the forcats package, which provides tools for dealing with categorical variables (and it’s an anagram of factors!). It provides a wide range of helpers for working with factors. forcats is not part of the core tidyverse, so we need to load it explicitly.
+```{r}
+library(tidyverse)
+library(forcats)
+```
+
+## 15.2 Creating factors
+Imagine that you have a variable that records month:
+```{r 15.2-1}
+x1 <- c("Dec","Apr","Jan","Mar")
+```
+
+Using a string to record this variable has two problems:
+
+1. There are only twelve possible months, and there’s nothing saving you from typos:
+```{r 15.2-2}
+x2 <- c("Dec","Apr","Jan","Mar")
+```
+
+2. It doesn't sort in a useful way:
+```{r 15.2-3}
+sort(x1)
+```
+
+You can fix both of these problems with a factor. To create a factor you must start by creating a list of the valid levels:
+```{r 15.2-4}
+month_levels <- c(
+  "Jan","Feb","Mar","Apr","May","Jun",
+  "Jul","Aug","Sep","Oct","Nov","Dec"
+)
+```
+
+Now you can create a factor:
+```{r 15.2-5}
+y1 <- factor(x1, levels=month_levels)
+y1
+sort(y1)
+```
+
+And any values not in the set will be silently coverted to NA:
+```{r 15.2-6}
+y2 <- factor(x2,levels=month_levels)
+y2
+```
+
+If you want a warning, you can use `readr::parse_factor()`:
+```{r 15.2-7}
+y2 <- parse_factor(x2,levels=month_levels)
+```
+
+IF you omit the levels, they'll be taken from the data in alphabetical order:
+```{r 15.2-8}
+factor(x1)
+```
+
+Sometimes you’d prefer that the order of the levels match the order of the first appearance in the data. You can do that when creating the factor by setting levels to unique(x), or after the fact, with `fct_inorder()`:
+```{r 15.2-8}
+f1 <- factor(x1,levels=unique(x1))
+f1
+
+f2 <- f1 %>% factor() %>%  fct_inorder()
+f2
+```
+
+## 15.3 General Social Survey
+For the rest of this chapter, we’re going to focus on `forcats::gss_cat`. It’s a sample of data from the General Social Survey, which is a long-running US survey conducted by the independent research organization NORC at the University of Chicago. The survey has thousands of questions, so in `gss_cat` I’ve selected a handful that will illustrate some common challenges you’ll encounter when working with factors.
+```{r 15.3-1}
+gss_cat
+```
+
+(Remember, since this dataset is provided by a package, you can get more information about the variables with `?gss_cat`.)
+
+When factors are stored in a tibble, you can’t see their levels so easily. One way to see them is with `count()`:
+```{r 15.3-2}
+gss_cat %>% 
+  count(race)
+```
+
+or with a bar chart:
+```{r 15.3-3}
+library(ggplot2)
+ggplot(gss_cat,aes(race))+geom_bar()
+```
+
+By default, ggplot2 will drop levels that don’t have any values. You can force them to display with:
+```{r 15.3-4}
+ggplot(gss_cat,aes(race))+
+  geom_bar()+
+  scale_x_discrete(drop=F)
+```
+
+These levels represent valid values that simply did not occur in this dataset. Unfortunately, dplyr doesn’t yet have a `drop` option, but it will in the future.
+
+When working with factors, the two most common operations are changing the order of the levels, and changing the values of the levels. Those operations are described in the sections below.
+
+### 15.3.1 Exercise
+1. Explore the distribution of rincome (reported income). What makes the default bar chart hard to understand? How could you improve the plot?
+```{r}
+head(gss_cat)
+gss_cat %>% 
+  ggplot(aes(rincome))+
+  geom_bar()
+
+gss_cat %>% 
+  mutate(rincome=
+           fct_relevel(rincome,
+                       c("No answer","Don't know","Refused","Not applicable"))) %>% 
+  ggplot(aes(rincome))+
+  geom_bar()+
+  coord_flip()
+  
+```
+
+
+2. What is the most common relig in this survey? What’s the most common partyid?
+```{r}
+gss_cat %>% 
+  count(relig) %>% 
+  arrange(-n)
+```
+
+3. Which relig does denom (denomination) apply to? How can you find out with a table? How can you find out with a visualisation?
+```{r}
+gss_cat %>% 
+  count(relig,denom) %>% 
+  filter(denom=="No denomination")
+```
+
+## 15.4 Modfying factor order
+It’s often useful to change the order of the factor levels in a visualisation. For example, imagine you want to explore the average number of hours spent watching TV per day across religions:
+```{r 15.4-1}
+relig_summary <- gss_cat %>% 
+  group_by(relig) %>% 
+  summarise(
+    age=mean(age,na.rm=TRUE),
+    tvhours = mean(tvhours,na.rm=T),
+    n=n()
+  )
+
+ggplot(relig_summary,aes(tvhours,relig))+geom_point()
+ggplot(relig_summary,aes(age,relig))+geom_point()
+ggplot(relig_summary,aes(tvhours,age,label=relig))+geom_point()+geom_abline()+geom_label()
+```
+
+It is difficult to interpret this plot because there’s no overall pattern. We can improve it by reordering the levels of `relig` using `fct_reorder()`. `fct_reorder()` takes three arguments:
+
+- `f`, the factor whose levels you want to modify.
+- `x`, a numeric vector that you want to use to reorder the levels.
+- Optionally, `fun`, a function that’s used if there are multiple values of `x` for each value of `f`. The default value is `median`.
+```{r 15.4-2}
+ggplot(relig_summary,aes(tvhours,fct_reorder(relig,tvhours)))+
+  geom_point()
+```
+
+Reordering religion makes it much easier to see that people in the “Don’t know” category watch much more TV, and Hinduism & Other Eastern religions watch much less.
+
+As you start making more complicated transformations, I’d recommend moving them out of `aes()` and into a separate `mutate()` step. For example, you could rewrite the plot above as:
+```{r 15.4-3}
+library(tidyverse)
+relig_summary %>% 
+  mutate(relig=fct_reorder(relig,tvhours)) %>% 
+  ggplot(aes(tvhours,relig))+
+  geom_point()
+```
+
+What if we create a similar plot looking at how average age varies across reported income level?
+```{r 14.5-4}
+rincome_summary <- gss_cat %>% 
+  group_by(rincome) %>% 
+  summarise(
+    age=mean(age,na.rm=T),
+    tvhours=mean(tvhours,na.rm=T),
+    n=n()
+  )
+
+ggplot(rincome_summary,aes(age,fct_reorder(rincome,age)))+geom_point()
+```
+
+Here, arbitrarily reordering the levels isn’t a good idea! That’s because `rincome` already has a principled order that we shouldn’t mess with. Reserve `fct_reorder()` for factors whose levels are arbitrarily ordered.
+
+However, it does make sense to pull “Not applicable” to the front with the other special levels. You can use `fct_relevel()`. It takes a factor, `f`, and then any number of levels that you want to move to the front of the line.
+```{r 14.5-5}
+ggplot(rincome_summary,aes(age,fct_relevel(rincome,"Not applicable")))+geom_point()
+```
+
+Why do you think the average age for “Not applicable” is so high?
+
+Another type of reordering is useful when you are colouring the lines on a plot. `fct_reorder2()` reorders the factor by the y values associated with the largest x values. This makes the plot easier to read because the line colours line up with the legend.
+```{r 14.5-6}
+by_age <- gss_cat %>%
+  filter(!is.na(age)) %>%
+  group_by(age, marital) %>%
+  count() %>%
+  mutate(prop = n / sum(n))
+
+ggplot(by_age, aes(age, prop, colour = marital)) +
+  geom_line(na.rm = TRUE)
+
+ggplot(by_age, aes(age, prop, colour = fct_reorder2(marital, age, prop))) +
+  geom_line() +
+  labs(colour = "marital")
+```
+
+Finally, for bar plots, you can use `fct_infreq()` to order levels in increasing frequency: this is the simplest type of reordering because it doesn’t need any extra variables. You may want to combine with `fct_rev()`.
+```{r}
+gss_cat %>%
+  mutate(marital = marital %>% fct_infreq() %>% fct_rev()) %>%
+  ggplot(aes(marital)) +
+    geom_bar()
+```
+
+### 15.4.1 Exercises
+
+1. There are some suspiciously high numbers in tvhours. Is the mean a good summary?
+```{r}
+gss_cat%>% 
+  ggplot(aes(tvhours))+
+  geom_histogram()+
+  geom_vline(xintercept=mean(gss_cat$tvhours,na.rm=T),colour="red")+
+  geom_vline(xintercept=median(gss_cat$tvhours,na.rm = T),colour="blue")
+```
+Nope, there's a reasonable differnece between the mean and the median.
+
+2. For each factor in gss_cat identify whether the order of the levels is arbitrary or principled.
+```{r}
+fct_gss <- gss_cat[sapply(gss_cat,is.factor)]
+lapply(fct_gss,levels)
+```
+For all variables except rincome the levels are arbitrary. rincome is the only one which has a principled order.
+
+
+3. Why did moving “Not applicable” to the front of the levels move it to the bottom of the plot?
+```{r}
+# original
+gss_cat %>%
+  mutate(rincome = rincome %>% fct_relevel("Not applicable")) %>%
+  ggplot(aes(rincome)) +
+  geom_bar()
+
+# revised
+# change the corrdinates (the plot is in the same order)
+gss_cat %>% 
+  mutate(rincome=rincome %>% fct_relevel("Not applicable")) %>% 
+  ggplot(aes(rincome))+
+  geom_bar()+
+  coord_flip()
+```
+
+## 15.5 Modifying factor levels 
+More powerful than changing the orders of the levels is changing their values. This allows you to clarify labels for publication, and collapse levels for high-level displays. The most general and powerful tool is `fct_recode()`. It allows you to recode, or change, the value of each level. For example, take the `gss_cat$partyid`:
+```{r 15.5-1}
+gss_cat %>% count(partyid)
+```
+
+The levels are terse and inconsistent. Let’s tweak them to be longer and use a parallel construction.
+```{r 15.5-2}
+gss_cat %>% 
+  mutate(partyid=fct_recode(partyid,
+                            "Republican, strong"    = "Strong republican",
+    "Republican, weak"      = "Not str republican",
+    "Independent, near rep" = "Ind,near rep",
+    "Independent, near dem" = "Ind,near dem",
+    "Democrat, weak"        = "Not str democrat",
+    "Democrat, strong"      = "Strong democrat")) %>% 
+  count(partyid)
+```
+
+`fct_recode()` will leave levels that aren’t explicitly mentioned as is, and will warn you if you accidentally refer to a level that doesn’t exist.
+
+To combine groups, you can assign multiple old levels to the same new level:
+```{r 15.5-3}
+gss_cat %>% 
+  mutate(partyid=fct_recode(partyid,
+                              "Republican, strong"    = "Strong republican",
+    "Republican, weak"      = "Not str republican",
+    "Independent, near rep" = "Ind,near rep",
+    "Independent, near dem" = "Ind,near dem",
+    "Democrat, weak"        = "Not str democrat",
+    "Democrat, strong"      = "Strong democrat",
+    "Other"                 = "No answer",
+    "Other"                 = "Don't know",
+    "Other"                 = "Other party"
+                            )) %>% 
+  count(partyid)
+```
+
+You must use this technique with care: if you group together categories that are truly different you will end up with misleading results.
+
+If you want to collapse a lot of levels, `fct_collapse()` is a useful variant of `fct_recode()`. For each new variable, you can provide a vector of old levels:
+```{r 15.5-4}
+gss_cat %>% 
+  mutate(partyid=fct_collapse(partyid,
+    other = c("No answer", "Don't know", "Other party"),
+    rep = c("Strong republican", "Not str republican"),
+    ind = c("Ind,near rep", "Independent", "Ind,near dem"),
+    dem = c("Not str democrat", "Strong democrat"))) %>% 
+  count(partyid)
+```
+
+Sometimes you just want to lump together all the small groups to make a plot or table simpler. That’s the job of `fct_lump()`:
+```{r 15.5-5}
+gss_cat %>% 
+  mutate(relig=fct_lump(relig)) %>% 
+  count(relig)
+```
+
+The default behaviour is to progressively lump together the smallest groups, ensuring that the aggregate is still the smallest group. In this case it’s not very helpful: it is true that the majority of Americans in this survey are Protestant, but we’ve probably over collapsed.
+
+Instead, we can use the `n` parameter to specify how many groups (excluding other) we want to keep:
+```{r}
+gss_cat %>% 
+  mutate(relig=fct_lump(relig,n=10)) %>% 
+  count(relig,sort=T) %>% 
+  print(n=Inf)
+```
+
+### 15.5.1 Exercises
+1. How have the proportions of people identifying as Democrat, Republican, and Independent changed over time?
+```{r}
+all_level <- levels(gss_cat$partyid)
+gss_cat %>% 
+  mutate(partyid=fct_collapse(partyid,
+                               Democract = c('Not str democrat', 'Strong democrat'),
+                              Republican = c('Strong republican', 'Not str republican'),
+                              Independent = c("Ind,near rep", "Independent", "Ind,near dem"),
+                              Others = c("No answer", "Don't know", "Other party")
+                              )) %>% 
+  count(year,partyid) %>% 
+  group_by(year) %>% 
+  mutate(perc=n/sum(n)) %>% 
+  ggplot(aes(year,perc,group=partyid,colour=partyid))+
+  geom_line()+
+  theme_bw()
+```
+
+It looks like Independents are growing whereas both other groups are shrinking, with Republicans shrinking much faster.
+
+2. How could you collapse rincome into a small set of categories?
+A very quick but perhaps not so advisable way (because you might lose important information and substantive meaning) is to use `fct_lump`.
+```{r}
+gss_cat %>%
+  mutate(rincome = fct_lump(rincome, n = 6)) %>%
+  count(rincome)
+
+gss_cat %>%
+  mutate(rincome =
+           fct_collapse(
+             rincome,
+             `Unknown` = c("No answer", "Don't know", "Refused", "Not applicable"),
+             `Lt $5000` = c("Lt $1000", str_c("$", c("1000", "3000", "4000"),
+                                              " to ", c("2999", "3999", "4999"))),
+             `$5000 to 10000` = str_c("$", c("5000", "6000", "7000", "8000"),
+                                      " to ", c("5999", "6999", "7999", "9999"))
+           )) %>%
+  ggplot(aes(x = rincome)) +
+  geom_bar() +
+  coord_flip()
+```
+
+# Chapter 16: Dates and times 
+## 16.1 Introduction
+This chapter will show you how to work with dates and times in R. At first glance, dates and times seem simple. You use them all the time in your regular life, and they don’t seem to cause much confusion. However, the more you learn about dates and times, the more complicated they seem to get. To warm up, try these three seemingly simple questions:
+- Does every hear have 365 days? 
+- Does every day have 24 hours?
+- Does every minute have 60 seconds
+
+I’m sure you know that not every year has 365 days, but do you know the full rule for determining if a year is a leap year? (It has three parts.) You might have remembered that many parts of the world use daylight savings time (DST), so that some days have 23 hours, and others have 25. You might not have known that some minutes have 61 seconds because every now and then leap seconds are added because the Earth’s rotation is gradually slowing down.
+
+Dates and times are hard because they have to reconcile two physical phenomena (the rotation of the Earth and its orbit around the sun) with a whole raft of geopolitical phenomena including months, time zones, and DST. This chapter won’t teach you every last detail about dates and times, but it will give you a solid grounding of practical skills that will help you with common data analysis challenges.
+
+### 16.1.1 Prerequisites
+This chapter will focus on the lubridate package, which makes it easier to work with dates and times in R. lubridate is not part of core tidyverse because you only need it when you’re working with dates/times. We will also need nycflights13 for practice data.
+```{r 16.1.1}
+library(tidyverse)
+library(lubridate)
+library(nycflights13)
+```
+
+## 16.2 Creating date/times
+
+
+
+
+
+
+
+
+
+
 

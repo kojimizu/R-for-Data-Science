@@ -1,0 +1,531 @@
+---
+title: "III. Program"
+output:
+  word_document: default
+  html_document: default
+---
+
+# III. Program
+# Chapter 17: Introduction
+In this part of the book, you’ll improve your programming skills. Programming is a cross-cutting skill needed for all data science work: you must use a computer to do data science; you cannot do it in your head, or with pencil and paper.
+
+Programming produces code, and code is a tool of communication. Obviously code tells the computer what you want it to do. But it also communicates meaning to other humans. Thinking about code as a vehicle for communication is important because every project you do is fundamentally collaborative. Even if you’re not working with other people, you’ll definitely be working with future-you! Writing clear code is important so that others (like future-you) can understand why you tackled an analysis in the way you did. That means getting better at programming also involves getting better at communicating. Over time, you want your code to become not just easier to write, but easier for others to read.
+
+Writing code is similar in many ways to writing prose. One parallel which I find particularly useful is that in both cases rewriting is the key to clarity. The first expression of your ideas is unlikely to be particularly clear, and you may need to rewrite multiple times. After solving a data analysis challenge, it’s often worth looking at your code and thinking about whether or not it’s obvious what you’ve done. If you spend a little time rewriting your code while the ideas are fresh, you can save a lot of time later trying to recreate what your code did. But this doesn’t mean you should rewrite every function: you need to balance what you need to achieve now with saving time in the long run. (But the more you rewrite your functions the more likely your first attempt will be clear.)
+
+In the following four chapters, you’ll learn skills that will allow you to both tackle new programs and to solve existing problems with greater clarity and ease:
+
+In pipes, you will dive deep into the pipe, %>%, and learn more about how it works, what the alternatives are, and when not to use it.
+
+Copy-and-paste is a powerful tool, but you should avoid doing it more than twice. Repeating yourself in code is dangerous because it can easily lead to errors and inconsistencies. Instead, in functions, you’ll learn how to write functions which let you extract out repeated code so that it can be easily reused.
+
+As you start to write more powerful functions, you’ll need a solid grounding in R’s data structures, provided by vectors. You must master the four common atomic vectors, the three important S3 classes built on top of them, and understand the mysteries of the list and data frame.
+
+Functions extract out repeated code, but you often need to repeat the same actions on different inputs. You need tools for iteration that let you do similar things again and again. These tools include for loops and functional programming, which you’ll learn about in iteration.
+
+## 17.1 For further study
+The goal of these chapters is to teach you the minimum about programming that you need to practice data science, which turns out to be a reasonable amount. Once you have mastered the material in this book, I strongly believe you should invest further in your programming skills. Learning more about programming is a long-term investment: it won’t pay off immediately, but in the long term it will allow you to solve new problems more quickly, and let you reuse your insights from previous problems in new scenarios.
+
+To learn more you need to study R as a programming language, not just an interactive environment for data science. We have written two books that will help you do so:
+
+Hands on Programming with R, by Garrett Grolemund. This is an introduction to R as a programming language and is a great place to start if R is your first programming language. It covers similar material to these chapters, but with a different style and different motivation examples (based in the casino). It’s a useful complement if you find that these four chapters go by too quickly.
+
+Advanced R by Hadley Wickham. This dives into the details of R the programming language. This is a great place to start if you have existing programming experience. It’s also a great next step once you’ve internalised the ideas in these chapters. You can read it online at http://adv-r.had.co.nz.
+
+# Chapter 18 Pipes
+## 18.1 Introduction
+Pipes are a powerful tool for clearly expressing a sequence of multiple operations. So far, you’ve been using them without knowing how they work, or what the alternatives are. Now, in this chapter, it’s time to explore the pipe in more detail. You’ll learn the alternatives to the pipe, when you shouldn’t use the pipe, and some useful related tools.
+
+### 17.1.1 Prerequisites
+The pipe, %>%, comes from the magrittr package by Stefan Milton Bache. Packages in the tidyverse load %>% for you automatically, so you don’t usually load magrittr explicitly. Here, however, we’re focussing on piping, and we aren’t loading any other packages, so we will load it explicitly.
+```{r}
+library(tidyverse)
+library(purrr)
+library(magrittr)
+
+# install.packages("pryr")
+library(pryr)
+```
+
+## 18.2 Piping alternatives
+The point of the pipe is to help you write code in a way that is easier to read and understand. To see why the pipe is so useful, we’re going to explore a number of ways of writing the same code. Let’s use code to tell a story about a little bunny named Foo Foo:
+>Little bunny Foo Foo
+Went hopping through the forest
+Scooping up the field mice
+And bopping them on the head
+
+This is a popular Children’s poem that is accompanied by hand actions.We’ll start by defining an object to represent little bunny Foo Foo:
+
+```{r 18.2-1}
+# foo_foo <- little_bunny()
+```
+
+And we’ll use a function for each key verb: `hop()`, `scoop()`, and `bop()`. Using this object and these verbs, there are (at least) four ways we could retell the story in code:
+
+1. Save each intermediate step as a new object.
+2. Overwrite the original object many times.
+3. Compose functions.
+4. Use the pipe.
+
+We’ll work through each approach, showing you the code and talking about the advantages and disadvantages.
+
+### 18.2.1 Intermediate steps
+The simplest approach is to save each step as a new object:
+
+```{r 18.2.1-1}
+# foo_foo_1 <- hop(foo_foo,through=forest)
+# foo_foo_2 <- scoop(foo_foo_1, up = field_mice)
+# foo_foo_3 <- bop(foo_foo_2, on = head)
+```
+
+The main downside of this form is that it forces you to name each intermediate element. If there are natural names, this is a good idea, and you should do it. But many times, like this in this example, there aren’t natural names, and you add numeric suffixes to make the names unique. That leads to two problems:
+
+1. The code is cluttered with unimportant names
+2. You have to carefully increment the suffix on each line.
+
+Whenever I write code like this, I invariably use the wrong number on one line and then spend 10 minutes scratching my head and trying to figure out what went wrong with my code.
+
+You may also worry that this form creates many copies of your data and takes up a lot of memory. Surprisingly, that’s not the case. First, note that proactively worrying about memory is not a useful way to spend your time: worry about it when it becomes a problem (i.e. you run out of memory), not before. Second, R isn’t stupid, and it will share columns across data frames, where possible. Let’s take a look at an actual data manipulation pipeline where we add a new column to `ggplot2::diamonds`:
+```{r 18.2.1-2}
+diamonds <- ggplot2::diamonds
+diamonds2 <- diamonds %>% 
+  dplyr::mutate(price_per_carat=price/carat)
+
+pryr::object_size(diamonds)
+pryr::object_size(diamonds2)
+pryr::object_size(diamonds,diamonds2)
+```
+
+`pryr::object_size()` gives the memory occupied by all of its arguments. The results seem counterintuitive at first:
+
+- `diamonds` takes up 3.46 MB,
+- `diamonds2` takes up 3.89 MB,
+- `diamonds` and `diamonds2` together take up 3.89 MB!
+
+How can that work? Well, `diamonds2` has 10 columns in common with `diamonds`: there’s no need to duplicate all that data, so the two data frames have variables in common. These variables will only get copied if you modify one of them. In the following example, we modify a single value in `diamonds$carat`. That means the `carat` variable can no longer be shared between the two data frames, and a copy must be made. The size of each data frame is unchanged, but the collective size increases:
+```{r 18.2.1-3}
+diamonds$carat[1] <- NA
+pryr::object_size(diamonds)
+pryr::object_size(diamonds2)
+pryr::object_size(diamonds,diamonds2)
+```
+
+(Note that we use `pryr::object_size()` here, not the built-in `object.size()`. `object.size()` only takes a single object so it can’t compute how data is shared across multiple objects.)
+
+### 18.2.2 Overwrite the original
+Instead of creating intermediate objects at each step, we could overwrite the original object:
+```{r 18.2.2-1}
+# foo_foo <- hop(foo_foo, through = forest)
+# foo_foo <- scoop(foo_foo, up = field_mice)
+# foo_foo <- bop(foo_foo, on = head)
+```
+
+This is less typing (and less thinking), so you’re less likely to make mistakes. However, there are two problems:
+
+1. Debugging is painful: if you make a mistake you’ll need to re-run the complete pipeline from the beginning.
+2. The repetition of the object being transformed (we’ve written foo_foo six times!) obscures what’s changing on each line.
+
+### 18.2.3 Function composition
+Another approach is to abandon assignment and just string the function calls together:
+```{r 18.2.3-1}
+# bop(
+#   scoop(
+#     hop(foo_foo, through = forest),
+#     up = field_mice
+#   ), 
+#   on = head
+# )
+```
+
+Here the disadvantage is that you have to read from inside-out, from right-to-left, and that the arguments end up spread far apart (evocatively called the dagwood sandwhich problem). In short, this code is hard for a human to consume.
+
+### 18.2.4 Use the pipe
+Finally, we can use the pipe:
+```{r 18.2.4-1}
+# foo_foo %>%
+#   hop(through = forest) %>%
+#   scoop(up = field_mice) %>%
+#   bop(on = head)
+```
+
+This is my favourite form, because it focusses on verbs, not nouns. You can read this series of function compositions like it’s a set of imperative actions. Foo Foo hops, then scoops, then bops. The downside, of course, is that you need to be familiar with the pipe. If you’ve never seen `%>%` before, you’ll have no idea what this code does. Fortunately, most people pick up the idea very quickly, so when you share your code with others who aren’t familiar with the pipe, you can easily teach them.
+
+The pipe works by performing a “lexical transformation”: behind the scenes, magrittr reassembles the code in the pipe to a form that works by overwriting an intermediate object. When you run a pipe like the one above, magrittr does something like this:
+
+```{r 18.2.4-2}
+# my_pipe <- function(.) {
+#   . <- hop(., through = forest)
+#   . <- scoop(., up = field_mice)
+#   bop(., on = head)
+# }
+# my_pipe(foo_foo)
+```
+
+This means that the pipe won’t work for two classes of functions:
+
+1. Functions that use the current environment. For example, `assign()` will create a new variable with the given name in the current environment:
+```{r 18.2.4-3}
+assign("x",10)
+x
+
+"x" %>% assign(100)
+x
+```
+
+The use of assign with the pipe does not work because it assigns it to a temporary environment used by `%>%`. If you do want to use assign with the pipe, you must be explicit about the environment:
+```{r 18.2.4-4}
+env <- environment()
+"x" %>% assign(100,envir=env)
+x
+```
+
+Other functions with this problem include `get()` and `load()`.
+
+2. Functions that use lazy evaluation. In R, function arguments are only computed when the function uses them, not prior to calling the function. The pipe computes each element in turn, so you can’t rely on this behaviour.
+
+One place that this is a problem is `tryCatch()`, which lets you capture and handle errors:
+```{r}
+# tryCatch(stop("!"),error=function(e)"An error")
+# 
+# stop("!") %>% 
+#   tryCatch(error = function(e) "An error")
+# # Error in eval(lhs, parent, parent) : !
+```
+
+There are a relatively wide class of functions with this behaviour, including `try()`, `suppressMessages()`, and `suppressWarnings()` in base R.
+
+## 18.3 When not to use the pipe
+The pipe is a powerful tool, but it’s not the only tool at your disposal, and it doesn’t solve every problem! Pipes are most useful for rewriting a fairly short linear sequence of operations. I think you should reach for another tool when:
+
+- Your pipes are longer than (say) ten steps. In that case, create intermediate objects with meaningful names. That will make debugging easier, because you can more easily check the intermediate results, and it makes it easier to understand your code, because the variable names can help communicate intent.
+
+- You have multiple inputs or outputs. If there isn’t one primary object being transformed, but two or more objects being combined together, don’t use the pipe.
+
+- You are starting to think about a directed graph with a complex dependency structure. Pipes are fundamentally linear and expressing complex relationships with them will typically yield confusing code.
+
+## 18.4 Other tools from magrittr
+All packages in the tidyverse automatically make %>% available for you, so you don’t normally load magrittr explicitly. However, there are some other useful tools inside magrittr that you might want to try out:
+
+- When working with more complex pipes, it’s sometimes useful to call a function for its side-effects. Maybe you want to print out the current object, or plot it, or save it to disk. Many times, such functions don’t return anything, effectively terminating the pipe.
+
+To work around this problem, you can use the “tee” pipe. %T>% works like %>% except that it returns the left-hand side instead of the right-hand side. It’s called “tee” because it’s like a literal T-shaped pipe.
+
+
+## 18.4 Other tools from magrittr
+All packages in the tidyverse automatically make `%>%` available for you, so you don’t normally load magrittr explicitly. However, there are some other useful tools inside magrittr that you might want to try out:
+
+- When working with more complex pipes, it’s sometimes useful to call a function for its side-effects. Maybe you want to print out the current object, or plot it, or save it to disk. Many times, such functions don’t return anything, effectively terminating the pipe.
+
+To work around this problem, you can use the “tee” pipe. `%T>%` works like `%>%` except that it returns the left-hand side instead of the right-hand side. It’s called “tee” because it’s like a literal T-shaped pipe.
+```{r 18.4-1}
+rnorm(100) %>% 
+  matrix(ncol=2) %>% 
+  plot() %>% 
+  str()
+
+rnorm(100) %>% 
+  matrix(ncol=2) %>% 
+  plot() %>% 
+  str()
+
+ndist <- rnorm(100000)
+hist(ndist)
+```
+
+- If you’re working with functions that don’t have a data frame based API
+(i.e. you pass them individual vectors, not a data frame and expressions to be evaluated in the context of that data frame), you might find `%$%` useful. It “explodes” out the variables in a data frame so that you can refer to them explicitly. This is useful when working with many functions in base R:
+```{r 18.4-2}
+mtcars %$%
+  cor(disp, mpg)
+```
+
+- For assignment magrittr provides the `%<>%` operator which allows you to replace code like:
+```{r 18.4-3}
+mtcars <- mtcars %>% 
+  transform(cyl=cyl*2)
+```
+
+with 
+```{r 18.4-4}
+mtcars %<>% transform(cyl=cyl*2)
+```
+
+I’m not a fan of this operator because I think assignment is such a special operation that it should always be clear when it’s occurring. In my opinion, a little bit of duplication (i.e. repeating the name of the object twice) is fine in return for making assignment more explicit.
+
+# Chapter 19 Functions
+## 19.1 Introduction
+One of the best ways to improve your reach as a data scientist is to write functions. Functions allow you to automate common tasks in a more powerful and general way than copy-and-pasting. Writing a function has three big advantages over using copy-and-paste:
+
+1. You can give a function an evocative name that makes your code easier to understand.
+2. As requirements change, you only need to update code in one place, instead of many.
+3. You eliminate the chance of making incidental mistakes when you copy and paste (i.e. updating a variable name in one place, but not in another).
+
+Writing good functions is a lifetime journey. Even after using R for many years I still learn new techniques and better ways of approaching old problems. The goal of this chapter is not to teach you every esoteric detail of functions but to get you started with some pragmatic advice that you can apply immediately.
+
+As well as practical advice for writing functions, this chapter also gives you some suggestions for how to style your code. Good code style is like correct punctuation. Youcanmanagewithoutit, but it sure makes things easier to read! As with styles of punctuation, there are many possible variations. Here we present the style we use in our code, but the most important thing is to be consistent.
+
+## 19.1.1 Prerequisites
+The focus of this chapter is on writing functions in base R, so you won’t need any extra packages.
+
+## 19.2 When should you write a function?
+You should consider writing a function whenever you’ve copied and pasted a block of code more than twice (i.e. you now have three copies of the same code). For example, take a look at this code. What does it do?
+```{r 19.2-1}
+df <- tibble::tibble(
+  a = rnorm(10),
+  b = rnorm(10),
+  c = rnorm(10),
+  d = rnorm(10)
+)
+df
+
+df$a <- (df$a - min(df$a, na.rm = TRUE)) / 
+  (max(df$a, na.rm = TRUE) - min(df$a, na.rm = TRUE))
+df$b <- (df$b - min(df$b, na.rm = TRUE)) / 
+  (max(df$b, na.rm = TRUE) - min(df$a, na.rm = TRUE))
+df$c <- (df$c - min(df$c, na.rm = TRUE)) / 
+  (max(df$c, na.rm = TRUE) - min(df$c, na.rm = TRUE))
+df$d <- (df$d - min(df$d, na.rm = TRUE)) / 
+  (max(df$d, na.rm = TRUE) - min(df$d, na.rm = TRUE))
+```
+
+You might be able to puzzle out that this rescales each column to have a range from 0 to 1. But did you spot the mistake? I made an error when copying-and-pasting the code for `df$b`: I forgot to change an `a` to a `b`. Extracting repeated code out into a function is a good idea because it prevents you from making this type of mistake.
+
+To write a function, you need to first analyze the code. How many inputs does it have?
+```{r 19.2-2}
+(df$a - min(df$a, na.rm = TRUE)) /
+  (max(df$a, na.rm = TRUE) - min(df$a, na.rm = TRUE))
+```
+
+This code only has one input: `df$a`. (If you’re surprised that `TRUE` is not an input, you can explore why in the exercise below.) To make the inputs more clear, it’s a good idea to rewrite the code using temporary variables with general names. Here this code only requires a single numeric vector, so I’ll call it `x`:
+```{r 19.2-3}
+x <- df$a
+(x - min(x, na.rm = T)) / (max(x, na.rm = T)-min(x, na.rm = T))
+```
+
+There is some duplication in this code. We’re computing the range of the data three times, so it makes sense to do it in one step:
+```{r 19.2-4}
+rng <- range(x, na.rm = T)
+(x-rng[1])/(rng[2]-rng[1])
+```
+
+Pulling out intermediate calculations into named variables is a good practice because it makes it more clear what the code is doing. Now that I’ve simplified the code, and checked that it still works, I can turn it into a function:
+```{r 19.2-5}
+rescale01 <- function(x){
+  rng <- range(x, na.rm = T)
+  (x-rng[1])/(rng[2]-rng[1])
+}
+rescale01(c(0,5,10))
+```
+
+There are three key steps to creating a new function:
+1. You need to pick a name for the function. Here I’ve used `rescale01` because this function rescales a vector to lie between 0 and 1.
+2. You list the inputs, or arguments, to the `function` inside function. Here we have just one argument. If we had more the call would look like `function(x, y, z)`.
+3. You place the code you have developed in body of the function, a { block that immediately follows `function(...)`.
+
+Note that overall process:  I only made the function after I’d figured out how to make it work with a simple input. It’s easier to start with working code and turn it into a function; it’s harder to create a function and then try to make it work.
+
+At this point it’s a good idea to check your function with a few different inputs:
+```{r 19.2-6}
+rescale01(c(-10,0,10))
+rescale01(c(1,2,3,NA,5))
+```
+
+As you write more and more functions you’ll eventually want to convert these informal, interactive tests into formal, automated tests. That process is called unit testing. Unfortunately, it’s beyond the scope of this book, but you can learn about it in http://r-pkgs.had.co.nz/tests.html.
+
+We can simplify the original example now that we have a function:
+```{r 19.2-7}
+df$a <- rescale01(df$a)
+df$b <- rescale01(df$b)
+df$c <- rescale01(df$c)
+df$d <- rescale01(df$d)
+```
+
+Compared to the original, this code is easier to understand and we’ve eliminated one class of copy-and-paste errors. There is still quite a bit of duplication since we’re doing the same thing to multiple columns. We’ll learn how to eliminate that duplication in iteration, once you’ve learned more about R’s data structures in vectors.
+
+Another advantage of functions is that if our requirements change, we only need to make the change in one place. For example, we might discover that some of our variables include infinite values, and `rescale01()` fails:
+```{r 19.2-8}
+x <- c(1:10,Inf)
+rescale01(x)
+```
+
+Because we’ve extracted the code into a function, we only need to make the fix in one place:
+```{r 19.2-9}
+rescale01 <- function(x){
+  rng <- range(x,na.rm=T,finite=T)
+  (x-rng[1])/(rng[2]-rng[1])
+}
+rescale01(x)
+```
+
+This is an important part of the “do not repeat yourself” (or DRY) principle. The more repetition you have in your code, the more places you need to remember to update when things change (and they always do!), and the more likely you are to create bugs over time.
+
+### 19.2.1 Practice
+1. Why is `TRUE` not a parameter to `rescale01()`? What would happen if x contained a single missing value, and `na.rm` was `FALSE`?
+```{r}
+rescale01 <- function(x){
+  rng <- range(x,na.rm=F)
+  (x-rng[1])/(rng[2]-rng[1])
+}
+rescale01(c(-1,0,5,20,NA))
+```
+
+Everything is NA! We should set an argument to control the `TRUE` or `FALSE` of `range`.
+
+2. In the second variant of `rescale01()`, infinite values are left unchanged. Rewrite `rescale01()` so that `-Inf` is mapped to 0, and `Inf` is mapped to 1.
+```{r}
+rescale01 <- function(x){
+  rng <- range(x,na.rm=T,finite=T)
+  (x-rng[1])/(rng[2]-rng[1])
+  x[x==Inf]<-1
+  x[x==-Inf] <- 0
+  x
+}
+
+rescale01(c(Inf,-Inf,0:5,NA))
+```
+
+3. Practice turning the following code snippets into functions. Think about what each function does. What would you call it? How many arguments does it need? Can you rewrite it to be more expressive or less duplicative?
+```{r}
+mean(is.na(x))
+x / sum(x, na.rm = TRUE)
+sd(x, na.rm = TRUE) / mean(x, na.rm = TRUE)
+```
+
+```{r}
+prop_miss <- function(x){
+  mean(is.na(x))
+}
+
+my_mean <- function(x){
+  x/sum(x,na.rm=T)
+}
+
+my_var <- function(x){
+  sd(x,na.rm=T)/mean(x,na.rm=T)
+}
+```
+
+
+4. Follow http://nicercode.github.io/intro/writing-functions.html to write your own functions to compute the variance and skew of a numeric vector.
+
+5. Write both_na(), a function that takes two vectors of the same length and returns the number of positions that have an NA in both vectors.
+```{r}
+both_na <- function(x,y){
+  stopifnot(length(x)==length(y))
+  which(is.na(x) & is.na(y))
+}
+both_na(c(1,2,NA,2,NA),c(1,2,3,4,NA))
+```
+
+6. What do the following functions do? Why are they useful even though they are so short?
+```{r}
+is_directory <- function(x) file.info(x)$isdir
+is_readable <- function(x) file.access(x, 4) == 0
+```
+
+## 19.3 Functions are for humans and computers
+
+It’s important to remember that functions are not just for the computer, but are also for humans. R doesn’t care what your function is called, or what comments it contains, but these are important for human readers. This section discusses some things that you should bear in mind when writing functions that humans can understand.
+
+The name of a function is important. Ideally, the name of your function will be short, but clearly evoke what the function does. That’s hard! But it’s better to be clear than short, as RStudio’s autocomplete makes it easy to type long names.
+
+Generally, function names should be verbs, and arguments should be nouns. There are some exceptions: nouns are ok if the function computes a very well known noun (i.e. `mean()` is better than `compute_mean()`), or accessing some property of an object (i.e. `coef()` is better than `get_coefficients()`). A good sign that a noun might be a better choice is if you’re using a very broad verb like “get”, “compute”, “calculate”, or “determine”. Use your best judgement and don’t be afraid to rename a function if you figure out a better name later.
+
+If your function name is composed of multiple words, I recommend using “snake_case”, where each lowercase word is separated by an underscore. camelCase is a popular alternative. It doesn’t really matter which one you pick, the important thing is to be consistent: pick one or the other and stick with it. R itself is not very consistent, but there’s nothing you can do about that. Make sure you don’t fall into the same trap by making your code as consistent as possible.
+
+If you have a family of functions that do similar things, make sure they have consistent names and arguments. Use a common prefix to indicate that they are connected. That’s better than a common suffix because autocomplete allows you to type the prefix and see all the members of the family.
+```{r}
+# Good
+input_select()
+input_checkbox()
+input_text()
+```
+
+A good example of this design is the stringr package: if you don’t remember exactly which function you need, you can type `str_` and jog your memory.
+
+Where possible, avoid overriding existing functions and variables. It’s impossible to do in general because so many good names are already taken by other packages, but avoiding the most common names from base R will avoid confusion.
+
+## 19.4 Conditional execution
+An `if` statement allows you to conditionally execute code. 
+It looks like this:
+```{r 19.4-1}
+# if (condition) {
+  # code executed when condition is TRUE
+# } else {
+  # code executed when condition is FALSE
+# }
+```
+
+To get help on `if` you need to surround it in backticks: `"?if`. The help isn’t particularly helpful if you’re not already an experienced programmer, but at least you know how to get to it!
+
+Here’s a simple function that uses an `if` statement. The goal of this function is to return a logical vector describing whether or not each element of a vector is named.
+```{r 19.4-2}
+has_name <- function(x){
+  nms <- names(x)
+  if(is.null(nms)){
+    rep(FALSE,length(x))
+  }else {
+    !is.na(nms) & nms !=""
+  }
+}
+```
+
+This function takes advantage of the standard return rule: a function returns the last value that it computed. Here that is either one of the two branches of the if statement.
+
+### 19.4.1 Conditions
+The `condition` must evaluate to either `TRUE` or `FALSE`. If it’s a vector, you’ll get a warning message; if it’s an `NA`, you’ll get an error. Watch out for these messages in your own code:
+```{r 19.4.1-1}
+# if (c(TRUE,FALSE)){}
+#> Warning in if (c(TRUE, FALSE)) {: the condition has length > 1 and only the
+#> first element will be used
+#> NULL
+
+# if (NA) {}
+```
+
+You can use `||` (or) and `&&` (and) to combine multiple logical expressions. These operators are “short-circuiting”: as soon as `||` sees the first `TRUE` it returns `TRUE` without computing anything else. As soon as `&&` sees the first `FALSE` it returns `FALSE`. You should never use `|` or `&` in an if statement: these are vectorised operations that apply to multiple values (that’s why you use them in `filter()`). If you do have a logical vector, you can use `any()` or `all()` to collapse it to a single value.
+```{r}
+identical(0L,0)
+x <- sqrt(2)^2
+x==2
+x-2
+```
+
+Instead use `dplyr::near()` for comparisons, as described in comparisons.
+
+And remember, `x == NA` doesn’t do anything useful!
+
+### 19.4.2 Multiple conditions
+You can chain multiple if statement together:
+```{r 19.4.2-1}
+# if (this) {
+#   # do that
+# } else if (that) {
+#   # do something else
+# } else {
+#   # 
+# }
+```
+
+But if you end up with a very long series of chained `if` statements, you should consider rewriting. One useful technique is the `switch()` function. It allows you to evaluate selected code based on position or name.
+```{r 19.4.2-2}
+#> function(x, y, op) {
+#>   switch(op,
+#>     plus = x + y,
+#>     minus = x - y,
+#>     times = x * y,
+#>     divide = x / y,
+#>     stop("Unknown op!")
+#>   )
+#> }
+```
+
+Another useful function that can often eliminate long chains of if statements is `cut()`. It’s used to discretise continuous variables.
+
+### 19.4.3 Code style
+```{r}
+
+```
+
+
+
